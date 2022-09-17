@@ -12,5 +12,6 @@ int main(int argc, char **argv) {
         path = argv[0];
     }
     server s(path);
+    s.start();
     return 0;
 }

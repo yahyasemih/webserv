@@ -9,6 +9,22 @@
 #include "server_config.hpp"
 
 class http_config {
+public:
+    explicit http_config(const std::string &conf);
+    const std::vector<server_config> &get_server_configs() const;
+    void set_server_configs(const std::vector<server_config> &server_configs);
+    const std::string &get_error_page() const;
+    void set_error_page(const std::string &error_page);
+    const std::string &get_access_log() const;
+    void set_access_log(const std::string &access_log);
+    const std::string &get_error_log() const;
+    void set_error_log(const std::string &error_log);
+    const std::string &get_client_max_body_size() const;
+    void set_client_max_body_size(const std::string &client_max_body_size);
+    const std::string &get_index() const;
+    void set_index(const std::string &index);
+
+private:
     std::vector<server_config> server_configs; // could be a std::unordered_map "host:port" -> server_config
     std::string error_page;
     std::string access_log;

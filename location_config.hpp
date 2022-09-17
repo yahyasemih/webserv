@@ -9,6 +9,19 @@
 #include <vector>
 
 class location_config {
+public:
+    const std::string &get_error_page() const;
+    void set_error_page(const std::string &error_page);
+    const std::string &get_client_max_body_size() const;
+    void set_client_max_body_size(const std::string &client_max_body_size);
+    const std::vector<std::string> &get_accepted_methods() const;
+    void set_accepted_methods(const std::vector<std::string> &accepted_methods);
+    const std::string &get_redirect() const;
+    void set_redirect(const std::string &redirect);
+    const std::string &get_index() const;
+    void set_index(const std::string &index);
+
+private:
     std::string error_page;
     std::string client_max_body_size;
     std::vector<std::string> accepted_methods;

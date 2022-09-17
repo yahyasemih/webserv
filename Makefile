@@ -1,9 +1,9 @@
 NAME = webserv
-CC = c++
-FLAGS = -Wall -Wextra -Werror -std=c++98
-SRCS = server.cpp config.cpp http_config.cpp server_config.cpp location_config.cpp main.cpp
-DEPS = server.hpp confg.hpp http_config.hpp server_config.hpp location_config.hpp
-OBJECTS = $(SRCS:.cpp=.o)
+CXX = c++
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98
+SRCS = server.cpp config.cpp http_config.cpp server_config.cpp location_config.cpp response_builder.cpp main.cpp
+DEPS = $(patsubst %.cpp,%.d,$(SRCS))
+OBJECTS = $(patsubst %.cpp,%.o,$(SRCS))
 RED = \033[1;31m
 GREEN = \033[1;32m
 BLUE = \033[1;34m
@@ -15,17 +15,16 @@ all: $(NAME)
 $(NAME): $(OBJECTS)
 	@echo "$(RED)Compiling $(NAME)...$(NC)"
 	@echo "$(RED)Linking...$(NC)"
-	@$(CC) $(FLAGS) $(OBJECTS) -o $(NAME)
+	@$(CXX) $(OBJECTS) -o $(NAME)
 	@echo "$(GREEN)Finished linking && compiling...$(NC)"
-
-%.o: %.cpp $(DEPS)
-	@$(CC) $(FLAGS) -c -o $@ $<
-	@echo "$(RED)Compiling $< ...$(NC)"
 
 clean:
 	@echo "$(RED)Cleaning objects...$(NC)"
 	@rm -rf $(OBJECTS)
 	@echo "$(GREEN)Cleaned objects...$(NC)"
+	@echo "$(RED)Cleaning dependencies...$(NC)"
+	@rm -rf $(DEPS)
+	@echo "$(GREEN)Cleaned dependencies...$(NC)"
 
 fclean: clean
 	@echo "$(RED)Cleaning $(NAME)...$(NC)"
@@ -33,3 +32,11 @@ fclean: clean
 	@echo "$(GREEN)Cleaned $(NAME)...$(NC)"
 
 re: fclean all
+
+.PHONY: clean fclean all re
+
+-include $(DEPS)
+
+%.o: %.cpp Makefile
+	@$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+	@echo "$(RED)Compiling $< ...$(NC)"
