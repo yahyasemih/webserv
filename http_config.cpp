@@ -8,11 +8,13 @@ http_config::http_config(const std::string &) {
     server_config server_conf;
     server_conf.set_host("127.0.0.1");
     server_conf.set_port(8080);
-    server_conf.set_root("/Users/yez-zainabi/CLionProjects/webserv");
+    std::set<std::string> names;
+    names.insert("localhost");
+    server_conf.set_server_names(names);
+    server_conf.set_root("/Users/yez-zain/Desktop/work/webserv");
     server_configs.push_back(server_conf);
     server_conf.set_host("127.0.0.1");
     server_conf.set_port(9090);
-    server_conf.set_root("/Users/yez-zainabi/CLionProjects/webserv");
     server_configs.push_back(server_conf);
 }
 

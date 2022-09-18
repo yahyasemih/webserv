@@ -9,7 +9,7 @@ const std::string &server_config::get_host() const {
 }
 
 void server_config::set_host(const std::string &host) {
-    server_config::host = host;
+    this->host = host;
 }
 
 short server_config::get_port() const {
@@ -17,10 +17,10 @@ short server_config::get_port() const {
 }
 
 void server_config::set_port(short port) {
-    server_config::port = port;
+    this->port = port;
 }
 
-const std::unordered_set<std::string> &server_config::get_server_names() const {
+const std::set<std::string> &server_config::get_server_names() const {
     return server_names;
 }
 
@@ -32,8 +32,8 @@ void server_config::set_root(const std::string &root) {
     this->root = root;
 }
 
-void server_config::set_server_names(const std::unordered_set<std::string> &server_names) {
-    server_config::server_names = server_names;
+void server_config::set_server_names(const std::set<std::string> &server_names) {
+    this->server_names = server_names;
 }
 
 const std::vector<location_config> &server_config::get_location_configs() const {
@@ -41,7 +41,7 @@ const std::vector<location_config> &server_config::get_location_configs() const 
 }
 
 void server_config::set_location_configs(const std::vector<location_config> &location_configs) {
-    server_config::location_configs = location_configs;
+    this->location_configs = location_configs;
 }
 
 const std::string &server_config::get_error_page() const {
@@ -49,7 +49,7 @@ const std::string &server_config::get_error_page() const {
 }
 
 void server_config::set_error_page(const std::string &error_page) {
-    server_config::error_page = error_page;
+    this->error_page = error_page;
 }
 
 const std::string &server_config::get_access_log() const {
@@ -57,7 +57,7 @@ const std::string &server_config::get_access_log() const {
 }
 
 void server_config::set_access_log(const std::string &access_log) {
-    server_config::access_log = access_log;
+    this->access_log = access_log;
 }
 
 const std::string &server_config::get_error_log() const {
@@ -65,7 +65,7 @@ const std::string &server_config::get_error_log() const {
 }
 
 void server_config::set_error_log(const std::string &error_log) {
-    server_config::error_log = error_log;
+    this->error_log = error_log;
 }
 
 const std::string &server_config::get_client_max_body_size() const {
@@ -73,7 +73,7 @@ const std::string &server_config::get_client_max_body_size() const {
 }
 
 void server_config::set_client_max_body_size(const std::string &client_max_body_size) {
-    server_config::client_max_body_size = client_max_body_size;
+    this->client_max_body_size = client_max_body_size;
 }
 
 const std::string &server_config::get_index() const {
@@ -81,5 +81,5 @@ const std::string &server_config::get_index() const {
 }
 
 void server_config::set_index(const std::string &index) {
-    server_config::index = index;
+    this->index = index;
 }

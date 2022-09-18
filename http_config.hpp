@@ -27,7 +27,7 @@ public:
     void set_index(const std::string &index);
 
 private:
-    std::vector<server_config> server_configs; // could be a std::unordered_map "host:port" -> server_config
+    std::vector<server_config> server_configs; // could be a std::map "host:port" -> server_config
     std::string root;
     std::string error_page;
     std::string access_log;

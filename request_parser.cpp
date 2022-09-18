@@ -2,7 +2,6 @@
 // Created by Yahya EZ-ZAINABI on 17/9/2022.
 //
 
-#include <iostream>
 #include "request_parser.hpp"
 
 request_parser::request_parser(const std::string &request) {
@@ -20,8 +19,8 @@ request_parser::request_parser(const std::string &request) {
         throw std::invalid_argument("Invalid HTTP request");
     }
     while (std::getline(s_steam, request_line) && !request_line.empty() && request_line != "\r") {
-        if (request_line.back() == '\r') {
-            request_line.pop_back();
+        if (request_line[request_line.size() - 1] == '\r') {
+            request_line.resize(request_line.size() - 1);
         }
         std::stringstream header_stream(request_line);
         std::string key;
@@ -59,6 +58,6 @@ const std::string &request_parser::get_body() const {
     return body;
 }
 
-const std::unordered_map<std::string, std::string> &request_parser::get_headers() const {
+const std::map<std::string, std::string> &request_parser::get_headers() const {
     return headers;
 }

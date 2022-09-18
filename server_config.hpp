@@ -6,7 +6,7 @@
 #define WEBSERV_SERVER_CONFIG_HPP
 
 #include <string>
-#include <unordered_set>
+#include <set>
 #include <vector>
 
 #include "location_config.hpp"
@@ -19,8 +19,8 @@ public:
     void set_port(short port);
     const std::string &get_root() const;
     void set_root(const std::string &root);
-    const std::unordered_set<std::string> &get_server_names() const;
-    void set_server_names(const std::unordered_set<std::string> &server_names);
+    const std::set<std::string> &get_server_names() const;
+    void set_server_names(const std::set<std::string> &server_names);
     const std::vector<location_config> &get_location_configs() const;
     void set_location_configs(const std::vector<location_config> &location_configs);
     const std::string &get_error_page() const;
@@ -37,7 +37,7 @@ private:
     std::string host;
     short port;
     std::string root;
-    std::unordered_set<std::string> server_names;
+    std::set<std::string> server_names;
     std::vector<location_config> location_configs;
     std::string error_page;
     std::string access_log;

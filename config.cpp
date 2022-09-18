@@ -12,7 +12,7 @@ const http_config &config::get_http_conf() const {
 }
 
 void config::set_http_conf(const http_config &http_conf) {
-    config::http_conf = http_conf;
+    this->http_conf = http_conf;
 }
 
 const std::string &config::get_error_log() const {
@@ -20,5 +20,5 @@ const std::string &config::get_error_log() const {
 }
 
 void config::set_error_log(const std::string &error_log) {
-    config::error_log = error_log;
+    this->error_log = error_log;
 }

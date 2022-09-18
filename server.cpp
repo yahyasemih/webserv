@@ -10,7 +10,7 @@ server::server(const std::string &config_file) : conf(config_file), is_running()
     protoent *protocol;
     int options = 1;
     protocol = getprotobyname("tcp");
-    if (protocol == nullptr) {
+    if (protocol == NULL) {
         throw std::runtime_error("Error while getting protocol TCP");
     }
     socket_fds.resize(conf.get_http_conf().get_server_configs().size());
@@ -108,11 +108,11 @@ void server::start() {
                         std::string file;
                         const server_config &conf = get_matching_server(host, port);
                         file = conf.get_root() + req_parser.get_path();
-                        if (file.back() == '/') {
+                        if (file[file.size() - 1] == '/') {
                             file += "index.html";
                         }
                         std::cout << "-----> file : " << file << std::endl;
-                        std::ifstream f(file);
+                        std::ifstream f(file.c_str());
                         std::string mime;
                         if (file.find(".jpeg") != std::string::npos) {
                             mime = "image/jpeg";
@@ -162,14 +162,14 @@ void server::stop() {
 }
 
 const server_config &server::get_matching_server(const std::string &host, short port) const {
-    const server_config *server_conf_ptr = nullptr;
+    const server_config *server_conf_ptr = NULL;
     for (size_t i = 0; i < conf.get_http_conf().get_server_configs().size(); ++i) {
         const server_config &server_conf = conf.get_http_conf().get_server_configs().at(i);
-        const std::unordered_set<std::string> &server_names = server_conf.get_server_names();
+        const std::set<std::string> &server_names = server_conf.get_server_names();
         if (server_names.find(host) != server_names.end() && server_conf.get_port() == port) {
             return server_conf;
         }
-        if (server_conf.get_port() == port && server_conf.get_host() == host && server_conf_ptr == nullptr) {
+        if (server_conf.get_port() == port && server_conf.get_host() == host && server_conf_ptr == NULL) {
             server_conf_ptr = &server_conf;
         }
     }

@@ -5,9 +5,10 @@
 #ifndef WEBSERV_REQUEST_PARSER_HPP
 #define WEBSERV_REQUEST_PARSER_HPP
 
+#include <iostream>
+#include <map>
 #include <string>
 #include <sstream>
-#include <unordered_map>
 
 class request_parser {
 public:
@@ -16,14 +17,13 @@ public:
     const std::string &get_path() const;
     const std::string &get_http_version() const;
     const std::string &get_body() const;
-    const std::unordered_map<std::string, std::string> &get_headers() const;
+    const std::map<std::string, std::string> &get_headers() const;
 private:
     std::string method;
     std::string path;
     std::string http_version;
     std::string body;
-    std::unordered_map<std::string, std::string> headers;
+    std::map<std::string, std::string> headers;
 };
-
 
 #endif //WEBSERV_REQUEST_PARSER_HPP

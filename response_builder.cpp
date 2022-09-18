@@ -5,8 +5,8 @@
 #include <iostream>
 #include "response_builder.hpp"
 
-static std::unordered_map<short, std::string> init_map() {
-    std::unordered_map<short, std::string> map;
+static std::map<short, std::string> init_map() {
+    std::map<short, std::string> map;
 
     // Informational 1xx
     map.insert(std::make_pair(100, "Continue"));
@@ -100,10 +100,10 @@ response_builder &response_builder::append_body(std::istream &stream) {
 std::string response_builder::build() const {
     std::stringstream response;
     response << "HTTP/1.1 " << status << " " << status_str.at(status) << std::endl;
-    for (headers_map ::const_iterator it = headers.cbegin(); it != headers.cend(); ++it) {
+    for (headers_map ::const_iterator it = headers.begin(); it != headers.end(); ++it) {
         response << it->first << ": " << it->second << std::endl;
     }
-    if (headers.find("Content-Length") == headers.cend()) {
+    if (headers.find("Content-Length") == headers.end()) {
         response << "Content-Length: " << body_size << std::endl;
     }
     response << std::endl; // End of headers

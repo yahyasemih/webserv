@@ -12,6 +12,10 @@ class location_config {
 public:
     const std::string &get_error_page() const;
     void set_error_page(const std::string &error_page);
+    const std::string &get_root() const;
+    void set_root(const std::string &root);
+    const std::string &get_route() const;
+    void set_route(const std::string &route);
     const std::string &get_client_max_body_size() const;
     void set_client_max_body_size(const std::string &client_max_body_size);
     const std::vector<std::string> &get_accepted_methods() const;
@@ -22,6 +26,8 @@ public:
     void set_index(const std::string &index);
 
 private:
+    std::string root;
+    std::string route;
     std::string error_page;
     std::string client_max_body_size;
     std::vector<std::string> accepted_methods;

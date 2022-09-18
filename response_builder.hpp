@@ -5,9 +5,9 @@
 #ifndef WEBSERV_RESPONSE_BUILDER_HPP
 #define WEBSERV_RESPONSE_BUILDER_HPP
 
+#include <map>
 #include <sstream>
 #include <string>
-#include <unordered_map>
 
 class response_builder {
 public:
@@ -18,8 +18,8 @@ public:
     response_builder &append_body(std::istream &stream);
     std::string build() const;
 private:
-    typedef std::unordered_map<std::string, std::string> headers_map;
-    typedef const std::unordered_map<short, std::string> status_map;
+    typedef std::map<std::string, std::string> headers_map;
+    typedef const std::map<short, std::string> status_map;
     short status;
     headers_map headers;
     std::string body;
