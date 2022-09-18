@@ -13,6 +13,8 @@ public:
     explicit http_config(const std::string &conf);
     const std::vector<server_config> &get_server_configs() const;
     void set_server_configs(const std::vector<server_config> &server_configs);
+    const std::string &get_root() const;
+    void set_root(const std::string &root);
     const std::string &get_error_page() const;
     void set_error_page(const std::string &error_page);
     const std::string &get_access_log() const;
@@ -26,6 +28,7 @@ public:
 
 private:
     std::vector<server_config> server_configs; // could be a std::unordered_map "host:port" -> server_config
+    std::string root;
     std::string error_page;
     std::string access_log;
     std::string error_log;

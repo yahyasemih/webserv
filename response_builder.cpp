@@ -2,6 +2,7 @@
 // Created by Yahya Ez-zainabi on 9/17/22.
 //
 
+#include <iostream>
 #include "response_builder.hpp"
 
 static std::unordered_map<short, std::string> init_map() {
@@ -84,8 +85,14 @@ response_builder &response_builder::append_body(const std::string &body) {
 response_builder &response_builder::append_body(std::istream &stream) {
     while (stream) {
         std::string str;
-        std::getline(stream, str);
+        //char buff[1000001];
+        //stream.getline(buff, 1000000);
+        std::getline(stream, str, '\n');
+        if (stream.peek() != EOF) {
+            str.push_back('\n');
+        }
         append_body(str);
+        //append_body(buff);
     }
     return *this;
 }

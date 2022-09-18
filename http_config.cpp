@@ -8,9 +8,11 @@ http_config::http_config(const std::string &) {
     server_config server_conf;
     server_conf.set_host("127.0.0.1");
     server_conf.set_port(8080);
+    server_conf.set_root("/Users/yez-zainabi/CLionProjects/webserv");
     server_configs.push_back(server_conf);
     server_conf.set_host("127.0.0.1");
     server_conf.set_port(9090);
+    server_conf.set_root("/Users/yez-zainabi/CLionProjects/webserv");
     server_configs.push_back(server_conf);
 }
 
@@ -19,7 +21,15 @@ const std::vector<server_config> &http_config::get_server_configs() const {
 }
 
 void http_config::set_server_configs(const std::vector<server_config> &server_configs) {
-    http_config::server_configs = server_configs;
+    this->server_configs = server_configs;
+}
+
+const std::string &http_config::get_root() const {
+    return root;
+}
+
+void http_config::set_root(const std::string &root) {
+    this->root = root;
 }
 
 const std::string &http_config::get_error_page() const {
@@ -27,7 +37,7 @@ const std::string &http_config::get_error_page() const {
 }
 
 void http_config::set_error_page(const std::string &error_page) {
-    http_config::error_page = error_page;
+    this->error_page = error_page;
 }
 
 const std::string &http_config::get_access_log() const {
@@ -35,7 +45,7 @@ const std::string &http_config::get_access_log() const {
 }
 
 void http_config::set_access_log(const std::string &access_log) {
-    http_config::access_log = access_log;
+    this->access_log = access_log;
 }
 
 const std::string &http_config::get_error_log() const {
@@ -43,7 +53,7 @@ const std::string &http_config::get_error_log() const {
 }
 
 void http_config::set_error_log(const std::string &error_log) {
-    http_config::error_log = error_log;
+    this->error_log = error_log;
 }
 
 const std::string &http_config::get_client_max_body_size() const {
@@ -51,7 +61,7 @@ const std::string &http_config::get_client_max_body_size() const {
 }
 
 void http_config::set_client_max_body_size(const std::string &client_max_body_size) {
-    http_config::client_max_body_size = client_max_body_size;
+    this->client_max_body_size = client_max_body_size;
 }
 
 const std::string &http_config::get_index() const {
@@ -59,5 +69,5 @@ const std::string &http_config::get_index() const {
 }
 
 void http_config::set_index(const std::string &index) {
-    http_config::index = index;
+    this->index = index;
 }

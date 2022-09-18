@@ -20,11 +20,19 @@ void server_config::set_port(short port) {
     server_config::port = port;
 }
 
-const std::vector<std::string> &server_config::get_server_names() const {
+const std::unordered_set<std::string> &server_config::get_server_names() const {
     return server_names;
 }
 
-void server_config::set_server_names(const std::vector<std::string> &server_names) {
+const std::string &server_config::get_root() const {
+    return root;
+}
+
+void server_config::set_root(const std::string &root) {
+    this->root = root;
+}
+
+void server_config::set_server_names(const std::unordered_set<std::string> &server_names) {
     server_config::server_names = server_names;
 }
 

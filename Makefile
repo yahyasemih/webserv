@@ -1,13 +1,19 @@
 NAME = webserv
 CXX = c++
-CXXFLAGS = -Wall -Wextra -Werror -std=c++98
-SRCS = server.cpp config.cpp http_config.cpp server_config.cpp location_config.cpp response_builder.cpp main.cpp
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -g
+SRCS = main.cpp \
+	server.cpp \
+	config.cpp \
+	http_config.cpp \
+	server_config.cpp \
+	location_config.cpp \
+	response_builder.cpp \
+	request_parser.cpp
+
 DEPS = $(patsubst %.cpp,%.d,$(SRCS))
 OBJECTS = $(patsubst %.cpp,%.o,$(SRCS))
 RED = \033[1;31m
 GREEN = \033[1;32m
-BLUE = \033[1;34m
-YELLOW = \033[1;33m
 NC = \033[1;0m
 
 all: $(NAME)
@@ -36,6 +42,8 @@ re: fclean all
 .PHONY: clean fclean all re
 
 -include $(DEPS)
+
+%.cpp:
 
 %.o: %.cpp Makefile
 	@$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@

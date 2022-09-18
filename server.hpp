@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "config.hpp"
+#include "request_parser.hpp"
 #include "response_builder.hpp"
 
 class server {
@@ -31,11 +32,11 @@ private:
 
     config conf;
     std::vector<int> socket_fds;
-    std::vector<sockaddr_in> socket_addrs;
     std::vector<pollfd> poll_fds;
     bool is_running;
 
     void accept_connection(size_t index);
+    const server_config &get_matching_server(const std::string &host, short port) const;
 };
 
 #endif //WEBSERV_SERVER_HPP

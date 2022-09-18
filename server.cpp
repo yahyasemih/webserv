@@ -4,9 +4,9 @@
 
 #include "server.hpp"
 
-const int server::BUFFER_SIZE = 1024;
+const int server::BUFFER_SIZE = 1024 * 1024;
 
-server::server(const std::string &config_file) : conf(config_file) {
+server::server(const std::string &config_file) : conf(config_file), is_running() {
     protoent *protocol;
     int options = 1;
     protocol = getprotobyname("tcp");
@@ -14,7 +14,6 @@ server::server(const std::string &config_file) : conf(config_file) {
         throw std::runtime_error("Error while getting protocol TCP");
     }
     socket_fds.resize(conf.get_http_conf().get_server_configs().size());
-    socket_addrs.resize(conf.get_http_conf().get_server_configs().size());
     for (size_t i = 0; i < socket_fds.size(); ++i) {
         socket_fds[i] = socket(AF_INET, SOCK_STREAM, protocol->p_proto);
         if (socket_fds[i] < 0) {
@@ -30,12 +29,13 @@ server::server(const std::string &config_file) : conf(config_file) {
             throw std::runtime_error("Setting socket option 'SO_NOSIGPIPE' failed : ");
         }
         fcntl(socket_fds[i], F_SETFL, O_NONBLOCK);
-        socket_addrs[i].sin_family = AF_INET;
+        sockaddr_in socket_addr = {};
+        socket_addr.sin_family = AF_INET;
         const std::string &host = conf.get_http_conf().get_server_configs().at(i).get_host();
         short port = conf.get_http_conf().get_server_configs().at(i).get_port();
-        socket_addrs[i].sin_addr.s_addr = inet_addr(host.c_str());
-        socket_addrs[i].sin_port = htons(port);
-        if (bind(socket_fds[i], (sockaddr *)&socket_addrs[i], sizeof(socket_addrs[i])) < 0) {
+        socket_addr.sin_addr.s_addr = inet_addr(host.c_str());
+        socket_addr.sin_port = htons(port);
+        if (bind(socket_fds[i], (sockaddr *)&socket_addr, sizeof(socket_addr)) < 0) {
             perror("Binding failed : ");
             throw std::runtime_error("Binding failed");
         }
@@ -51,11 +51,17 @@ server::server(const std::string &config_file) : conf(config_file) {
     }
 }
 
+server::~server() {
+    stop();
+}
+
 void server::accept_connection(size_t index) {
-    int addr_len = sizeof(socket_addrs[index]);
-    int new_socket = accept(socket_fds[index],
-                            reinterpret_cast<sockaddr *>(&socket_addrs[index]),
-                            reinterpret_cast<socklen_t *>(&addr_len));
+    sockaddr_in socket_addr = {};
+    socklen_t addr_len = sizeof(socket_addr);
+    if (getsockname(socket_fds[index], (sockaddr *)&socket_addr, &addr_len)) {
+        perror("get socket name failed: ");
+    }
+    int new_socket = accept(socket_fds[index], (sockaddr *)&socket_addr, &addr_len);
     if (new_socket < 0) {
         perror("Could not accept connection : ");
     } else {
@@ -65,10 +71,6 @@ void server::accept_connection(size_t index) {
         pf.events = POLLIN;
         poll_fds.push_back(pf);
     }
-}
-
-server::~server() {
-    stop();
 }
 
 void server::start() {
@@ -91,24 +93,56 @@ void server::start() {
                         pf.fd = -1;
                     } else if (pf.revents & POLLIN) {
                         char buff[BUFFER_SIZE];
-                        size_t res = read(pf.fd, buff, BUFFER_SIZE);
+                        size_t res = recv(pf.fd, buff, BUFFER_SIZE, 0);
                         buff[res] = '\0';
-                        std::cout << "got '" << buff << "'" << std::endl;
+                        request_parser req_parser(buff);
+                        std::string host_port = req_parser.get_headers().at("Host");
+                        std::stringstream host_stream(host_port);
+                        std::string host;
+                        short port = 80;
+                        std::getline(host_stream, host, ':');
+                        if (host_stream.peek() != EOF) {
+                            host_stream >> port;
+                        }
                         response_builder res_builder;
-                        std::ifstream f("index.html");
+                        std::string file;
+                        const server_config &conf = get_matching_server(host, port);
+                        file = conf.get_root() + req_parser.get_path();
+                        if (file.back() == '/') {
+                            file += "index.html";
+                        }
+                        std::cout << "-----> file : " << file << std::endl;
+                        std::ifstream f(file);
+                        std::string mime;
+                        if (file.find(".jpeg") != std::string::npos) {
+                            mime = "image/jpeg";
+                        } else if (file.find(".ico") != std::string::npos) {
+                            mime = "image/x-icon";
+                        } else {
+                            mime = "text/html";
+                        }
                         res_builder.set_status(200)
-                                .set_header("Date", "Mon, 27 Jul 2009 12:28:53 GMT")
-                                .set_header("Server", "Apache/2.2.14 (Win32)")
-                                .set_header("Last-Modified", "Wed, 22 Jul 2009 19:15:56 GMT")
-                                .set_header("Content-Type", "text/html")
+                                .set_header("Server", "yez-zain-server/1.0.0 (UNIX)")
+                                .set_header("Content-Type", mime)
                                 .set_header("Connection", "closed")
                                 .append_body(f);
                         std::string response = res_builder.build();
-                        write(pf.fd, response.c_str(), response.size());
+                        send(pf.fd, response.c_str(), response.size(), 0);
                     }
                 }
+                // Remove any invalid file descriptor
+                std::cout << "Actual number of fds : " << poll_fds.size() << std::endl;
+                for (std::vector<pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end();) {
+                    if (it->fd == -1) {
+                        it = poll_fds.erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
+                std::cout << "Number of fds after removal : " << poll_fds.size() << std::endl;
             }
         } catch (const std::exception &e) {
+            std::cerr << "Exception: " << e.what() << std::endl;
             stop();
         }
     }
@@ -125,4 +159,19 @@ void server::stop() {
         shutdown(poll_fds[i].fd, 2);
         close(poll_fds[i].fd);
     }
+}
+
+const server_config &server::get_matching_server(const std::string &host, short port) const {
+    const server_config *server_conf_ptr = nullptr;
+    for (size_t i = 0; i < conf.get_http_conf().get_server_configs().size(); ++i) {
+        const server_config &server_conf = conf.get_http_conf().get_server_configs().at(i);
+        const std::unordered_set<std::string> &server_names = server_conf.get_server_names();
+        if (server_names.find(host) != server_names.end() && server_conf.get_port() == port) {
+            return server_conf;
+        }
+        if (server_conf.get_port() == port && server_conf.get_host() == host && server_conf_ptr == nullptr) {
+            server_conf_ptr = &server_conf;
+        }
+    }
+    return *server_conf_ptr;
 }
