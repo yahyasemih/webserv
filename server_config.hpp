@@ -13,6 +13,7 @@
 
 class server_config {
 public:
+    server_config();
     const std::string &get_host() const;
     void set_host(const std::string &host);
     short get_port() const;

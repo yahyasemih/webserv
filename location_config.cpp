@@ -4,6 +4,15 @@
 
 #include "location_config.hpp"
 
+location_config::location_config() : root("."), route("/"), error_page("error.html"),
+        client_max_body_size("80m"), redirect("no"), upload_dir("."), list_directory(true) {
+    indexes.push_back("index.html");
+    indexes.push_back("index.htm");
+    accepted_methods.insert("GET");
+    accepted_methods.insert("POST");
+    accepted_methods.insert("DELETE");
+}
+
 void location_config::set_root(const std::string &root) {
     this->root = root;
 }
@@ -74,4 +83,3 @@ bool location_config::is_list_directory() const {
 void location_config::set_list_directory(bool list_directory) {
     this->list_directory = list_directory;
 }
-

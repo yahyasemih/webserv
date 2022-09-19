@@ -11,6 +11,7 @@
 
 class location_config {
 public:
+    location_config();
     const std::string &get_error_page() const;
     void set_error_page(const std::string &error_page);
     const std::string &get_root() const;

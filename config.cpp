@@ -4,7 +4,7 @@
 
 #include "config.hpp"
 
-config::config() : error_log("error.log") {
+config::config() : error_log("/dev/stderr") {
 }
 
 http_config &config::get_http_conf() {

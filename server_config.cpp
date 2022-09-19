@@ -4,6 +4,12 @@
 
 #include "server_config.hpp"
 
+server_config::server_config() : host("127.0.0.1"), port(80), root("."), error_page("error.html"),
+        access_log("/dev/stdout"), error_log("/dev/stderr"), client_max_body_size("80m") {
+    indexes.push_back("index.html");
+    indexes.push_back("index.htm");
+}
+
 const std::string &server_config::get_host() const {
     return host;
 }
@@ -20,16 +26,16 @@ void server_config::set_port(short port) {
     this->port = port;
 }
 
-const std::set<std::string> &server_config::get_server_names() const {
-    return server_names;
-}
-
 const std::string &server_config::get_root() const {
     return root;
 }
 
 void server_config::set_root(const std::string &root) {
     this->root = root;
+}
+
+const std::set<std::string> &server_config::get_server_names() const {
+    return server_names;
 }
 
 void server_config::set_server_names(const std::set<std::string> &server_names) {
