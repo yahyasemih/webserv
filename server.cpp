@@ -148,12 +148,8 @@ void server::start() {
         try {
             int r = poll(poll_fds.data(), poll_fds.size(), 0);
             if (r > 0) {
-                std::cout << "r is " << r << std::endl;
                 for (size_t index = 0; index < poll_fds.size(); ++index) {
                     pollfd &pf = poll_fds.at(index);
-                    if (pf.revents) {
-                        std::cout << "got event from fd " << pf.fd << " : " << pf.revents << std::endl;
-                    }
                     if (pf.revents & POLLRDNORM) {
                         accept_connection(index);
                     } else if (pf.revents & POLLHUP) {
@@ -161,76 +157,10 @@ void server::start() {
                         close(pf.fd);
                         pf.fd = -1;
                     } else if (pf.revents & POLLIN) {
-                        char buff[BUFFER_SIZE];
-                        ssize_t res = recv(pf.fd, buff, BUFFER_SIZE, 0);
-                        if (res <= 0) {
-                            if (res < 0) {
-                                std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
-                            } else {
-                                std::cout << "client with fd " << pf.fd;
-                                std::cout << " closed its half side of the connection" << std::endl;
-                            }
-                            close(pf.fd);
-                            pf.fd = -1;
-                            continue;
-                        }
-                        buff[res] = '\0';
-                        request_parser req_parser(buff);
-                        std::string host_port = req_parser.get_headers().at("Host");
-                        std::stringstream host_stream(host_port);
-                        std::string host;
-                        short port = 80;
-                        std::getline(host_stream, host, ':');
-                        if (host_stream.peek() != EOF) {
-                            host_stream >> port;
-                        }
-                        response_builder res_builder;
-                        std::string file;
-                        const server_config &conf = get_matching_server(host, port);
-                        file = conf.get_root() + req_parser.get_path();
-                        if (*file.rbegin() == '/') {
-                            file += conf.get_indexes().at(0);
-                        }
-                        std::cout << "-----> file : " << file << std::endl;
-                        std::ifstream f(file.c_str());
-                        std::string mime;
-                        if (file.find(".jpeg") != std::string::npos) {
-                            mime = "image/jpeg";
-                        } else if (file.find(".ico") != std::string::npos) {
-                            mime = "image/x-icon";
-                        } else {
-                            mime = "text/html";
-                        }
-                        if (f.is_open()) {
-                            res_builder.set_status(200);
-                        } else {
-                            res_builder.set_status(404);
-                        }
-                        res_builder.set_header("Server", "yez-zain-server/1.0.0 (UNIX)")
-                                .set_header("Content-Type", mime)
-                                .set_header("Connection", "keep-alive");
-                        if (f.is_open()) {
-                            res_builder.append_body(f);
-                        }
-                        std::string response = res_builder.build();
-                        res = send(pf.fd, response.c_str(), response.size(), 0);
-                        if (res < 0) {
-                            std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
-                            close(pf.fd);
-                            pf.fd = -1;
-                        }
+                        handle_request(pf);
                     }
                 }
-                // Remove any invalid file descriptor
-                std::cout << "Actual number of fds : " << poll_fds.size() << std::endl;
-                for (std::vector<pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end();) {
-                    if (it->fd == -1) {
-                        it = poll_fds.erase(it);
-                    } else {
-                        ++it;
-                    }
-                }
-                std::cout << "Number of fds after removal : " << poll_fds.size() << std::endl;
+                clean_fds();
             }
         } catch (const std::exception &e) {
             std::cerr << "Exception: " << e.what() << std::endl;
@@ -265,4 +195,76 @@ const server_config &server::get_matching_server(const std::string &host, short 
         }
     }
     return *server_conf_ptr;
+}
+
+void server::handle_request(pollfd &pf) {
+    char buff[BUFFER_SIZE];
+    ssize_t res = recv(pf.fd, buff, BUFFER_SIZE, 0);
+    if (res <= 0) {
+        if (res < 0) {
+            std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
+        } else {
+            std::cout << "client with fd " << pf.fd;
+            std::cout << " closed its half side of the connection" << std::endl;
+        }
+        close(pf.fd);
+        pf.fd = -1;
+        return;
+    }
+    buff[res] = '\0';
+    request_parser req_parser(buff);
+    std::string host_port = req_parser.get_headers().at("Host");
+    std::stringstream host_stream(host_port);
+    std::string host;
+    short port = 80;
+    std::getline(host_stream, host, ':');
+    if (host_stream.peek() != EOF) {
+        host_stream >> port;
+    }
+    response_builder res_builder;
+    std::string file;
+    const server_config &conf = get_matching_server(host, port);
+    file = conf.get_root() + req_parser.get_path();
+    if (*file.rbegin() == '/') {
+        file += conf.get_indexes().at(0);
+    }
+    std::cout << "-----> file : " << file << std::endl;
+    std::ifstream f(file.c_str());
+    std::string mime;
+    if (file.find(".jpeg") != std::string::npos) {
+        mime = "image/jpeg";
+    } else if (file.find(".ico") != std::string::npos) {
+        mime = "image/x-icon";
+    } else {
+        mime = "text/html";
+    }
+    if (f.is_open()) {
+        res_builder.set_status(200);
+    } else {
+        res_builder.set_status(404);
+    }
+    res_builder.set_header("Server", "yez-zain-server/1.0.0 (UNIX)")
+            .set_header("Content-Type", mime)
+            .set_header("Connection", "keep-alive");
+    if (f.is_open()) {
+        res_builder.append_body(f);
+    }
+    std::string response = res_builder.build();
+    res = send(pf.fd, response.c_str(), response.size(), 0);
+    if (res < 0) {
+        std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
+        close(pf.fd);
+        pf.fd = -1;
+    }
+}
+
+void server::clean_fds() {
+    // Remove any invalid file descriptor, previously closed and marked with -1
+    for (std::vector<pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end();) {
+        if (it->fd == -1) {
+            it = poll_fds.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }

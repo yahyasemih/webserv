@@ -37,6 +37,8 @@ private:
     bool is_running;
 
     void accept_connection(size_t index);
+    void handle_request(pollfd &pf);
+    void clean_fds();
     const server_config &get_matching_server(const std::string &host, short port);
 };
 
