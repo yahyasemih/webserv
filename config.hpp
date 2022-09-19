@@ -10,8 +10,8 @@
 
 class config {
 public:
-    explicit config(const std::string &config_file);
-    const http_config &get_http_conf() const;
+    config();
+    http_config &get_http_conf();
     void set_http_conf(const http_config &http_conf);
     const std::string &get_error_log() const;
     void set_error_log(const std::string &error_log);

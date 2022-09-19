@@ -4,10 +4,10 @@
 
 #include "config.hpp"
 
-config::config(const std::string &) : http_conf("") {
+config::config() : error_log("error.log") {
 }
 
-const http_config &config::get_http_conf() const {
+http_config &config::get_http_conf() {
     return http_conf;
 }
 

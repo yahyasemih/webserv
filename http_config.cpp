@@ -4,21 +4,11 @@
 
 #include "http_config.hpp"
 
-http_config::http_config(const std::string &) {
-    server_config server_conf;
-    server_conf.set_host("127.0.0.1");
-    server_conf.set_port(8080);
-    std::set<std::string> names;
-    names.insert("localhost");
-    server_conf.set_server_names(names);
-    server_conf.set_root("/Users/yez-zain/Desktop/work/webserv");
-    server_configs.push_back(server_conf);
-    server_conf.set_host("127.0.0.1");
-    server_conf.set_port(9090);
-    server_configs.push_back(server_conf);
+http_config::http_config() : root("."), error_page("error.html"), access_log("access.log"),
+        error_log("error.log"), client_max_body_size("80m"), index("index.html") {
 }
 
-const std::vector<server_config> &http_config::get_server_configs() const {
+std::vector<server_config> &http_config::get_server_configs() {
     return server_configs;
 }
 

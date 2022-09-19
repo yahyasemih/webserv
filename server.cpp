@@ -6,11 +6,68 @@
 
 const int server::BUFFER_SIZE = 1024 * 1024;
 
-server::server(const std::string &config_file) : conf(config_file), is_running() {
+server::server(const std::string &config_file) : is_running() {
+    config_parser parser(config_file);
+    parser.compile();
+    if (!parser.is_valid()) {
+        std::stringstream error_msg;
+        error_msg << parser.get_error_message();
+        if (parser.get_error_line() > 0) {
+            error_msg << " at line : ";
+            error_msg << parser.get_error_line();
+        }
+        throw std::runtime_error(error_msg.str());
+    } else {
+        conf = parser.get_result();
+        std::cout << "result: " << std::endl;
+        std::cout << "\t error_log: " << conf.get_error_log() << std::endl;
+        std::cout << "\t http config: " << std::endl;
+        std::cout << "\t\t root: " << conf.get_http_conf().get_root() << std::endl;
+        std::cout << "\t\t error_page: " << conf.get_http_conf().get_error_page() << std::endl;
+        std::cout << "\t\t access_log: " << conf.get_http_conf().get_access_log() << std::endl;
+        std::cout << "\t\t error_log: " << conf.get_http_conf().get_error_log() << std::endl;
+        std::cout << "\t\t client_max_body_size: " << conf.get_http_conf().get_client_max_body_size() << std::endl;
+        std::cout << "\t\t index: " << conf.get_http_conf().get_index() << std::endl;
+        std::cout << "\t\t server_configs: " << conf.get_http_conf().get_server_configs().size() << std::endl;
+        for (size_t i = 0; i < conf.get_http_conf().get_server_configs().size(); ++i) {
+            server_config &server_conf = conf.get_http_conf().get_server_configs().at(i);
+            std::cout << "\t\t\t listen: " << server_conf.get_host() << ":" << server_conf.get_port() << std::endl;
+            std::cout << "\t\t\t root: " << server_conf.get_root() << std::endl;
+            std::cout << "\t\t\t error_page: " << server_conf.get_error_page() << std::endl;
+            std::cout << "\t\t\t access_log: " << server_conf.get_access_log() << std::endl;
+            std::cout << "\t\t\t error_log: " << server_conf.get_error_log() << std::endl;
+            std::cout << "\t\t\t client_max_body_size: " << server_conf.get_client_max_body_size() << std::endl;
+            std::cout << "\t\t\t index: " << server_conf.get_index() << std::endl;
+            std::cout << "\t\t\t server_names: ";
+            std::set<std::string>::iterator it = server_conf.get_server_names().begin();
+            for (; it != server_conf.get_server_names().end(); ++it) {
+                std::cout << *it << " ";
+            }
+            std::cout << std::endl;
+            std::cout << "\t\t\t locations: " << server_conf.get_location_configs().size() << std::endl;
+            for (size_t j = 0; j < server_conf.get_location_configs().size(); ++j) {
+                location_config &location_conf = server_conf.get_location_configs().at(j);
+                std::cout << "\t\t\t\t route: " << location_conf.get_route() << std::endl;
+                std::cout << "\t\t\t\t root: " << location_conf.get_root() << std::endl;
+                std::cout << "\t\t\t\t error_page: " << location_conf.get_error_page() << std::endl;
+                std::cout << "\t\t\t\t client_max_body_size: " << location_conf.get_client_max_body_size() << std::endl;
+                std::cout << "\t\t\t\t index: " << location_conf.get_index() << std::endl;
+                std::cout << "\t\t\t\t redirect: " << location_conf.get_redirect() << std::endl;
+                std::cout << "\t\t\t\t upload_dir: " << location_conf.get_upload_dir() << std::endl;
+                std::cout << "\t\t\t\t list_directory: " << location_conf.is_list_directory() << std::endl;
+                std::cout << "\t\t\t\t accept: ";
+                std::set<std::string>::iterator it = location_conf.get_accepted_methods().begin();
+                for (; it != location_conf.get_accepted_methods().end(); ++it) {
+                    std::cout << *it << " ";
+                }
+                std::cout << std::endl;
+            }
+        }
+    }
     protoent *protocol;
     int options = 1;
     protocol = getprotobyname("tcp");
-    if (protocol == NULL) {
+    if (!protocol) {
         throw std::runtime_error("Error while getting protocol TCP");
     }
     socket_fds.resize(conf.get_http_conf().get_server_configs().size());
@@ -161,7 +218,7 @@ void server::stop() {
     }
 }
 
-const server_config &server::get_matching_server(const std::string &host, short port) const {
+const server_config &server::get_matching_server(const std::string &host, short port) {
     const server_config *server_conf_ptr = NULL;
     for (size_t i = 0; i < conf.get_http_conf().get_server_configs().size(); ++i) {
         const server_config &server_conf = conf.get_http_conf().get_server_configs().at(i);

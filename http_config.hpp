@@ -10,8 +10,8 @@
 
 class http_config {
 public:
-    explicit http_config(const std::string &conf);
-    const std::vector<server_config> &get_server_configs() const;
+    http_config();
+    std::vector<server_config> &get_server_configs();
     void set_server_configs(const std::vector<server_config> &server_configs);
     const std::string &get_root() const;
     void set_root(const std::string &root);

@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "config.hpp"
+#include "config_parser.hpp"
 #include "request_parser.hpp"
 #include "response_builder.hpp"
 
@@ -36,7 +37,7 @@ private:
     bool is_running;
 
     void accept_connection(size_t index);
-    const server_config &get_matching_server(const std::string &host, short port) const;
+    const server_config &get_matching_server(const std::string &host, short port);
 };
 
 #endif //WEBSERV_SERVER_HPP

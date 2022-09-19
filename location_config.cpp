@@ -36,11 +36,11 @@ void location_config::set_client_max_body_size(const std::string &client_max_bod
     this->client_max_body_size = client_max_body_size;
 }
 
-const std::vector<std::string> &location_config::get_accepted_methods() const {
+const std::set<std::string> &location_config::get_accepted_methods() const {
     return accepted_methods;
 }
 
-void location_config::set_accepted_methods(const std::vector<std::string> &accepted_methods) {
+void location_config::set_accepted_methods(const std::set<std::string> &accepted_methods) {
     this->accepted_methods = accepted_methods;
 }
 
@@ -58,5 +58,20 @@ const std::string &location_config::get_index() const {
 
 void location_config::set_index(const std::string &index) {
     this->index = index;
+}
+
+const std::string &location_config::get_upload_dir() const {
+    return upload_dir;
+}
+void location_config::set_upload_dir(const std::string &upload_dir) {
+    this->upload_dir = upload_dir;
+}
+
+bool location_config::is_list_directory() const {
+    return list_directory;
+}
+
+void location_config::set_list_directory(bool list_directory) {
+    this->list_directory = list_directory;
 }
 

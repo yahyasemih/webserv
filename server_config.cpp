@@ -36,7 +36,7 @@ void server_config::set_server_names(const std::set<std::string> &server_names) 
     this->server_names = server_names;
 }
 
-const std::vector<location_config> &server_config::get_location_configs() const {
+std::vector<location_config> &server_config::get_location_configs() {
     return location_configs;
 }
 

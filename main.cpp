@@ -3,6 +3,7 @@
 //
 
 #include "server.hpp"
+#include "config_parser.hpp"
 
 int main(int argc, char **argv) {
     std::string path;
@@ -11,7 +12,11 @@ int main(int argc, char **argv) {
     } else {
         path = argv[0];
     }
-    server s(path);
-    s.start();
+    try {
+        server s(path);
+        s.start();
+    } catch (const std::exception &e) {
+        std::cerr << "Error while starting server: " << e.what() << std::endl;
+    }
     return 0;
 }

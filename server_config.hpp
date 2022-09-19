@@ -21,7 +21,7 @@ public:
     void set_root(const std::string &root);
     const std::set<std::string> &get_server_names() const;
     void set_server_names(const std::set<std::string> &server_names);
-    const std::vector<location_config> &get_location_configs() const;
+    std::vector<location_config> &get_location_configs();
     void set_location_configs(const std::vector<location_config> &location_configs);
     const std::string &get_error_page() const;
     void set_error_page(const std::string &error_page);

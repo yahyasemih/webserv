@@ -6,6 +6,7 @@
 #define WEBSERV_LOCATION_CONFIG_HPP
 
 #include <string>
+#include <set>
 #include <vector>
 
 class location_config {
@@ -18,21 +19,27 @@ public:
     void set_route(const std::string &route);
     const std::string &get_client_max_body_size() const;
     void set_client_max_body_size(const std::string &client_max_body_size);
-    const std::vector<std::string> &get_accepted_methods() const;
-    void set_accepted_methods(const std::vector<std::string> &accepted_methods);
+    const std::set<std::string> &get_accepted_methods() const;
+    void set_accepted_methods(const std::set<std::string> &accepted_methods);
     const std::string &get_redirect() const;
     void set_redirect(const std::string &redirect);
     const std::string &get_index() const;
     void set_index(const std::string &index);
+    const std::string &get_upload_dir() const;
+    void set_upload_dir(const std::string &upload_dir);
+    bool is_list_directory() const;
+    void set_list_directory(bool list_directory);
 
 private:
     std::string root;
     std::string route;
     std::string error_page;
     std::string client_max_body_size;
-    std::vector<std::string> accepted_methods;
+    std::set<std::string> accepted_methods;
     std::string redirect;
     std::string index;
+    std::string upload_dir;
+    bool list_directory;
 };
 
 
