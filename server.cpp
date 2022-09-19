@@ -153,7 +153,7 @@ void server::start() {
                     if (pf.revents & POLLRDNORM) {
                         accept_connection(index);
                     } else if (pf.revents & POLLHUP) {
-                        std::cout << "connection closed" << std::endl;
+                        std::cout << "connection to fd " << pf.fd << " closed" << std::endl;
                         close(pf.fd);
                         pf.fd = -1;
                     } else if (pf.revents & POLLIN) {
