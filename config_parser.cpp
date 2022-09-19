@@ -72,6 +72,25 @@ bool config_parser::parse_config() {
                 error_line = line_nbr;
                 return false;
             }
+            if (new_scope == "server") {
+                if (scope.top() != "http") {
+                    error_message = "Invalid 'server' config inside '" + scope.top() + "' scope";
+                    error_line = line_nbr;
+                    return false;
+                }
+            } else if (new_scope == "location") {
+                if (scope.top() != "server") {
+                    error_message = "Invalid 'location' config inside '" + scope.top() + "' scope";
+                    error_line = line_nbr;
+                    return false;
+                }
+            } else if (new_scope == "http") {
+                if (scope.top() != "main") {
+                    error_message = "Invalid 'http' config inside '" + scope.top() + "' scope";
+                    error_line = line_nbr;
+                    return false;
+                }
+            }
             scope.push(new_scope);
             if (scope_to_instructions.find(scope.top()) == scope_to_instructions.end()) {
                 scope_to_instructions.insert(std::make_pair(scope.top(), scope_list_t()));
