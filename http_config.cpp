@@ -4,8 +4,8 @@
 
 #include "http_config.hpp"
 
-http_config::http_config() : root("."), error_page("error.html"), access_log("access.log"),
-        error_log("error.log"), client_max_body_size("80m"), index("index.html") {
+http_config::http_config() : error_page("error.html"), access_log("access.log"),
+        error_log("error.log"), client_max_body_size("80m") {
 }
 
 std::vector<server_config> &http_config::get_server_configs() {
@@ -56,10 +56,10 @@ void http_config::set_client_max_body_size(const std::string &client_max_body_si
     this->client_max_body_size = client_max_body_size;
 }
 
-const std::string &http_config::get_index() const {
-    return index;
+const std::vector<std::string> &http_config::get_indexes() const {
+    return indexes;
 }
 
-void http_config::set_index(const std::string &index) {
-    this->index = index;
+void http_config::set_indexes(const std::vector<std::string> &indexes) {
+    this->indexes = indexes;
 }

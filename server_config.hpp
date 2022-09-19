@@ -31,8 +31,8 @@ public:
     void set_error_log(const std::string &error_log);
     const std::string &get_client_max_body_size() const;
     void set_client_max_body_size(const std::string &client_max_body_size);
-    const std::string &get_index() const;
-    void set_index(const std::string &index);
+    const std::vector<std::string> &get_indexes() const;
+    void set_indexes(const std::vector<std::string> &indexes);
 private:
     std::string host;
     short port;
@@ -43,7 +43,7 @@ private:
     std::string access_log;
     std::string error_log;
     std::string client_max_body_size;
-    std::string index;
+    std::vector<std::string> indexes;
 };
 
 #endif //WEBSERV_SERVER_CONFIG_HPP

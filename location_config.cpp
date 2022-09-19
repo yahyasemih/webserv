@@ -52,12 +52,12 @@ void location_config::set_redirect(const std::string &redirect) {
     this->redirect = redirect;
 }
 
-const std::string &location_config::get_index() const {
-    return index;
+const std::vector<std::string> &location_config::get_indexes() const {
+    return indexes;
 }
 
-void location_config::set_index(const std::string &index) {
-    this->index = index;
+void location_config::set_indexes(const std::vector<std::string> &indexes) {
+    this->indexes = indexes;
 }
 
 const std::string &location_config::get_upload_dir() const {

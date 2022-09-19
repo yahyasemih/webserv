@@ -23,8 +23,8 @@ public:
     void set_accepted_methods(const std::set<std::string> &accepted_methods);
     const std::string &get_redirect() const;
     void set_redirect(const std::string &redirect);
-    const std::string &get_index() const;
-    void set_index(const std::string &index);
+    const std::vector<std::string> &get_indexes() const;
+    void set_indexes(const std::vector<std::string> &indexes);
     const std::string &get_upload_dir() const;
     void set_upload_dir(const std::string &upload_dir);
     bool is_list_directory() const;
@@ -37,7 +37,7 @@ private:
     std::string client_max_body_size;
     std::set<std::string> accepted_methods;
     std::string redirect;
-    std::string index;
+    std::vector<std::string> indexes;
     std::string upload_dir;
     bool list_directory;
 };

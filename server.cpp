@@ -27,7 +27,11 @@ server::server(const std::string &config_file) : is_running() {
         std::cout << "\t\t access_log: " << conf.get_http_conf().get_access_log() << std::endl;
         std::cout << "\t\t error_log: " << conf.get_http_conf().get_error_log() << std::endl;
         std::cout << "\t\t client_max_body_size: " << conf.get_http_conf().get_client_max_body_size() << std::endl;
-        std::cout << "\t\t index: " << conf.get_http_conf().get_index() << std::endl;
+        std::cout << "\t\t index: ";
+        for (size_t i = 0 ; i < conf.get_http_conf().get_indexes().size(); ++i) {
+            std::cout << conf.get_http_conf().get_indexes().at(i) << " ";
+        }
+        std::cout << std::endl;
         std::cout << "\t\t server_configs: " << conf.get_http_conf().get_server_configs().size() << std::endl;
         for (size_t i = 0; i < conf.get_http_conf().get_server_configs().size(); ++i) {
             server_config &server_conf = conf.get_http_conf().get_server_configs().at(i);
@@ -37,7 +41,11 @@ server::server(const std::string &config_file) : is_running() {
             std::cout << "\t\t\t access_log: " << server_conf.get_access_log() << std::endl;
             std::cout << "\t\t\t error_log: " << server_conf.get_error_log() << std::endl;
             std::cout << "\t\t\t client_max_body_size: " << server_conf.get_client_max_body_size() << std::endl;
-            std::cout << "\t\t\t index: " << server_conf.get_index() << std::endl;
+            std::cout << "\t\t\t index: ";
+            for (size_t i = 0 ; i < server_conf.get_indexes().size(); ++i) {
+                std::cout << server_conf.get_indexes().at(i) << " ";
+            }
+            std::cout << std::endl;
             std::cout << "\t\t\t server_names: ";
             std::set<std::string>::iterator it = server_conf.get_server_names().begin();
             for (; it != server_conf.get_server_names().end(); ++it) {
@@ -51,7 +59,11 @@ server::server(const std::string &config_file) : is_running() {
                 std::cout << "\t\t\t\t root: " << location_conf.get_root() << std::endl;
                 std::cout << "\t\t\t\t error_page: " << location_conf.get_error_page() << std::endl;
                 std::cout << "\t\t\t\t client_max_body_size: " << location_conf.get_client_max_body_size() << std::endl;
-                std::cout << "\t\t\t\t index: " << location_conf.get_index() << std::endl;
+                std::cout << "\t\t\t\t index: ";
+                for (size_t i = 0 ; i < location_conf.get_indexes().size(); ++i) {
+                    std::cout << location_conf.get_indexes().at(i) << " ";
+                }
+                std::cout << std::endl;
                 std::cout << "\t\t\t\t redirect: " << location_conf.get_redirect() << std::endl;
                 std::cout << "\t\t\t\t upload_dir: " << location_conf.get_upload_dir() << std::endl;
                 std::cout << "\t\t\t\t list_directory: " << location_conf.is_list_directory() << std::endl;

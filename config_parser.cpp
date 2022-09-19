@@ -153,13 +153,9 @@ bool config_parser::parse_config() {
                         }
                         http_conf.set_client_max_body_size(http_instruction_list.at(i).at(1));
                     } else if (http_instruction_list.at(i).at(0) == "index") {
-                        // TODO: handle index as multiple indexes
-                        if (http_instruction_list.at(i).size() != 2) {
-                            error_message = "Multiple args for 'index'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        http_conf.set_index(http_instruction_list.at(i).at(1));
+                        std::vector<std::string> indexes(http_instruction_list.at(i).begin() + 1,
+                                                         http_instruction_list.at(i).end());
+                        http_conf.set_indexes(indexes);
                     } else {
                         error_message = "Invalid field '" + http_instruction_list.at(i).at(0) + "'";
                         error_line = line_nbr;
@@ -232,13 +228,9 @@ bool config_parser::parse_config() {
                         }
                         server_conf.set_client_max_body_size(server_instruction_list.at(i).at(1));
                     } else if (server_instruction_list.at(i).at(0) == "index") {
-                        // TODO: handle index as multiple indexes
-                        if (server_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'index'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        server_conf.set_index(server_instruction_list.at(i).at(1));
+                        std::vector<std::string> indexes(server_instruction_list.at(i).begin() + 1,
+                                                         server_instruction_list.at(i).end());
+                        server_conf.set_indexes(indexes);
                     } else {
                         error_message = "Invalid field '" + server_instruction_list.at(i).at(0) + "'";
                         error_line = line_nbr;
@@ -279,13 +271,9 @@ bool config_parser::parse_config() {
                         }
                         location_conf.set_client_max_body_size(location_instruction_list.at(i).at(1));
                     } else if (location_instruction_list.at(i).at(0) == "index") {
-                        // TODO: handle index as multiple indexes
-                        if (location_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'index'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        location_conf.set_index(location_instruction_list.at(i).at(1));
+                        std::vector<std::string> indexes(location_instruction_list.at(i).begin() + 1,
+                                                         location_instruction_list.at(i).end());
+                        location_conf.set_indexes(indexes);
                     } else if (location_instruction_list.at(i).at(0) == "accept") {
                         std::set<std::string> accepted_methods(
                                 location_instruction_list.at(i).begin() + 1,

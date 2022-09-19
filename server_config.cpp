@@ -76,10 +76,10 @@ void server_config::set_client_max_body_size(const std::string &client_max_body_
     this->client_max_body_size = client_max_body_size;
 }
 
-const std::string &server_config::get_index() const {
-    return index;
+const std::vector<std::string> &server_config::get_indexes() const {
+    return indexes;
 }
 
-void server_config::set_index(const std::string &index) {
-    this->index = index;
+void server_config::set_indexes(const std::vector<std::string> &indexes) {
+    this->indexes = indexes;
 }
