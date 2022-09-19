@@ -150,7 +150,18 @@ void server::start() {
                         pf.fd = -1;
                     } else if (pf.revents & POLLIN) {
                         char buff[BUFFER_SIZE];
-                        size_t res = recv(pf.fd, buff, BUFFER_SIZE, 0);
+                        ssize_t res = recv(pf.fd, buff, BUFFER_SIZE, 0);
+                        if (res <= 0) {
+                            if (res < 0) {
+                                std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
+                            } else {
+                                std::cout << "client with fd " << pf.fd;
+                                std::cout << " closed its half side of the connection" << std::endl;
+                            }
+                            close(pf.fd);
+                            pf.fd = -1;
+                            continue;
+                        }
                         buff[res] = '\0';
                         request_parser req_parser(buff);
                         std::string host_port = req_parser.get_headers().at("Host");
@@ -181,10 +192,15 @@ void server::start() {
                         res_builder.set_status(200)
                                 .set_header("Server", "yez-zain-server/1.0.0 (UNIX)")
                                 .set_header("Content-Type", mime)
-                                .set_header("Connection", "closed")
+                                .set_header("Connection", "keep-alive")
                                 .append_body(f);
                         std::string response = res_builder.build();
-                        send(pf.fd, response.c_str(), response.size(), 0);
+                        res = send(pf.fd, response.c_str(), response.size(), 0);
+                        if (res < 0) {
+                            std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
+                            close(pf.fd);
+                            pf.fd = -1;
+                        }
                     }
                 }
                 // Remove any invalid file descriptor
