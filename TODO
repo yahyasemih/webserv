@@ -3,3 +3,5 @@ TODO: Make error_page based on error code -> a page for 403, another one for 404
 TODO: Add directory listing logic
 TODO: Handle index page correctly: search in indexes for existing page, if not try directory listing if enabled, if not send 403
 TODO: Extract query string and path correctly from request path
+TODO: Check client body size based on value from config
+TODO: Propagate config values from outer scope if not set
