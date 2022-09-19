@@ -19,7 +19,7 @@ request_parser::request_parser(const std::string &request) {
         throw std::invalid_argument("Invalid HTTP request");
     }
     while (std::getline(s_steam, request_line) && !request_line.empty() && request_line != "\r") {
-        if (request_line[request_line.size() - 1] == '\r') {
+        if (*request_line.rbegin() == '\r') {
             request_line.resize(request_line.size() - 1);
         }
         std::stringstream header_stream(request_line);

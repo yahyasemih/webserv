@@ -54,7 +54,7 @@ bool config_parser::parse_config() {
         if (line.empty()) {
             continue;
         }
-        if (line[line.size() - 1] == ';') { // instruction
+        if (*line.rbegin() == ';') { // instruction
             line.erase(line.size() - 1);
             std::vector<std::string> args;
             std::string arg;
@@ -63,7 +63,7 @@ bool config_parser::parse_config() {
                 args.push_back(arg);
             }
             scope_to_instructions.at(scope.top()).rbegin()->push_back(args);
-        } else if (line[line.size() - 1] == '{') { // new scope
+        } else if (*line.rbegin() == '{') { // new scope
             std::string new_scope;
             std::stringstream scope_stream(line.erase(line.size() - 1));
             scope_stream >> new_scope;

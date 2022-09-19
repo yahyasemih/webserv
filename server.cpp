@@ -188,7 +188,7 @@ void server::start() {
                         std::string file;
                         const server_config &conf = get_matching_server(host, port);
                         file = conf.get_root() + req_parser.get_path();
-                        if (file[file.size() - 1] == '/') {
+                        if (*file.rbegin() == '/') {
                             file += "index.html";
                         }
                         std::cout << "-----> file : " << file << std::endl;
