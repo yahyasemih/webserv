@@ -241,7 +241,9 @@ void server::handle_request(pollfd &pf) {
     if (f.is_open()) {
         res_builder.set_status(200);
     } else {
-        res_builder.set_status(404);
+        std::ifstream error_file(conf.get_error_page().c_str());
+        res_builder.set_status(404)
+                .append_body(error_file);
     }
     res_builder.set_header("Server", "yez-zain-server/1.0.0 (UNIX)")
             .set_header("Content-Type", mime)
