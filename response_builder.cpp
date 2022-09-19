@@ -2,7 +2,6 @@
 // Created by Yahya Ez-zainabi on 9/17/22.
 //
 
-#include <iostream>
 #include "response_builder.hpp"
 
 static std::map<short, std::string> init_map() {
@@ -59,6 +58,9 @@ static std::map<short, std::string> init_map() {
 }
 
 const response_builder::status_map response_builder::status_str = init_map();
+
+response_builder::response_builder() : status(200), body_size(0) {
+}
 
 response_builder &response_builder::set_status(short status) {
     this->status = status;

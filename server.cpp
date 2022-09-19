@@ -189,7 +189,7 @@ void server::start() {
                         const server_config &conf = get_matching_server(host, port);
                         file = conf.get_root() + req_parser.get_path();
                         if (*file.rbegin() == '/') {
-                            file += "index.html";
+                            file += conf.get_indexes().at(0);
                         }
                         std::cout << "-----> file : " << file << std::endl;
                         std::ifstream f(file.c_str());
@@ -201,11 +201,17 @@ void server::start() {
                         } else {
                             mime = "text/html";
                         }
-                        res_builder.set_status(200)
-                                .set_header("Server", "yez-zain-server/1.0.0 (UNIX)")
+                        if (f.is_open()) {
+                            res_builder.set_status(200);
+                        } else {
+                            res_builder.set_status(404);
+                        }
+                        res_builder.set_header("Server", "yez-zain-server/1.0.0 (UNIX)")
                                 .set_header("Content-Type", mime)
-                                .set_header("Connection", "keep-alive")
-                                .append_body(f);
+                                .set_header("Connection", "keep-alive");
+                        if (f.is_open()) {
+                            res_builder.append_body(f);
+                        }
                         std::string response = res_builder.build();
                         res = send(pf.fd, response.c_str(), response.size(), 0);
                         if (res < 0) {

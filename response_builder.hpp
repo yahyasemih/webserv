@@ -5,12 +5,14 @@
 #ifndef WEBSERV_RESPONSE_BUILDER_HPP
 #define WEBSERV_RESPONSE_BUILDER_HPP
 
+#include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
 
 class response_builder {
 public:
+    response_builder();
     response_builder &set_status(short status);
     response_builder &set_header(const std::string &key, const std::string &value);
     response_builder &set_body(const std::string &body);
