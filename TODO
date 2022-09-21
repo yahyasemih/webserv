@@ -6,4 +6,5 @@ TODO: Extract query string and path correctly from request path
 TODO: Check client body size based on value from config
 TODO: Propagate config values from outer scope if not set
 TODO: Close/keep connection based on 'Connection' header value
-TODO: support request divided into multiple buffers
+TODO: Support request divided into multiple buffers
+TODO: Add content type detection support
