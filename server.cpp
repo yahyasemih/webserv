@@ -200,6 +200,14 @@ const server_config &server::get_matching_server(const std::string &ip, const st
     return *server_conf_ptr;
 }
 
+static bool ends_with(const std::string &value, const std::string &ending)
+{
+    if (ending.size() > value.size()) {
+        return false;
+    }
+    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
 static std::string get_valid_path(const std::string &root, std::string path) {
     std::string res;
     size_t idx;
@@ -216,7 +224,7 @@ static std::string get_valid_path(const std::string &root, std::string path) {
         }
     }
 
-    if (res.find_last_of("/..") == res.size() - 1) {
+    if (ends_with(res, "/..")) {
         res.resize(res.size() - 2);
     }
     return root + res;
