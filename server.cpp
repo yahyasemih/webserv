@@ -4,8 +4,6 @@
 
 #include "server.hpp"
 
-const int server::BUFFER_SIZE = 1024 * 1024;
-
 server::server(const std::string &config_file) : is_running() {
     config_parser parser(config_file);
     parser.compile();
@@ -101,7 +99,7 @@ server::server(const std::string &config_file) : is_running() {
         sockaddr_in socket_addr = {};
         socket_addr.sin_family = AF_INET;
         const std::string &host = conf.get_http_conf().get_server_configs().at(i).get_host();
-        short port = conf.get_http_conf().get_server_configs().at(i).get_port();
+        in_port_t port = conf.get_http_conf().get_server_configs().at(i).get_port();
         socket_addr.sin_addr.s_addr = inet_addr(host.c_str());
         socket_addr.sin_port = htons(port);
         if (bind(socket_fds[i], (sockaddr *)&socket_addr, sizeof(socket_addr)) < 0) {
@@ -130,7 +128,8 @@ void server::accept_connection(size_t index) {
     if (getsockname(socket_fds[index], (sockaddr *)&socket_addr, &addr_len)) {
         perror("get socket name failed: ");
     }
-    int new_socket = accept(socket_fds[index], (sockaddr *)&socket_addr, &addr_len);
+    sockaddr_in socket_remote_addr = {};
+    int new_socket = accept(socket_fds[index], (sockaddr *)&socket_remote_addr, &addr_len);
     if (new_socket < 0) {
         perror("Could not accept connection : ");
     } else {
@@ -139,6 +138,7 @@ void server::accept_connection(size_t index) {
         pf.fd = new_socket;
         pf.events = POLLIN;
         poll_fds.push_back(pf);
+        clients.insert(std::make_pair(new_socket, client(new_socket, socket_addr, socket_remote_addr)));
     }
 }
 
@@ -182,7 +182,7 @@ void server::stop() {
     }
 }
 
-const server_config &server::get_matching_server(const std::string &host, short port) {
+const server_config &server::get_matching_server(const std::string &ip, const std::string &host, in_port_t port) {
     const server_config *server_conf_ptr = NULL;
     for (size_t i = 0; i < conf.get_http_conf().get_server_configs().size(); ++i) {
         const server_config &server_conf = conf.get_http_conf().get_server_configs().at(i);
@@ -190,16 +190,42 @@ const server_config &server::get_matching_server(const std::string &host, short 
         if (server_names.find(host) != server_names.end() && server_conf.get_port() == port) {
             return server_conf;
         }
-        if (server_conf.get_port() == port && server_conf.get_host() == host && server_conf_ptr == NULL) {
+        if (server_conf.get_port() == port && server_conf.get_host() == ip && server_conf_ptr == NULL) {
             server_conf_ptr = &server_conf;
         }
+    }
+    if (server_conf_ptr == NULL) {
+        throw std::runtime_error("No configuration match the {ip, host, port} provided");
     }
     return *server_conf_ptr;
 }
 
+static std::string get_valid_path(const std::string &root, std::string path) {
+    std::string res;
+    size_t idx;
+
+    while ((idx = path.find('/')) != std::string::npos) {
+        res += "/";
+        path = path.substr(idx + 1);
+        if (path.find("../") == 0) {
+            res = res.substr(0, res.find_last_of('/', res.size() - 2));
+        } else if (path.find("./") == 0) {
+            res.resize(res.size() - 1);
+        } else {
+            res += path.substr(0, path.find('/'));
+        }
+    }
+
+    if (res.find_last_of("/..") == res.size() - 1) {
+        res.resize(res.size() - 2);
+    }
+    return root + res;
+}
+
 void server::handle_request(pollfd &pf) {
-    char buff[BUFFER_SIZE];
-    ssize_t res = recv(pf.fd, buff, BUFFER_SIZE, 0);
+    client &c = clients.at(pf.fd);
+    ssize_t res = c.receive();
+
     if (res <= 0) {
         if (res < 0) {
             std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
@@ -207,29 +233,47 @@ void server::handle_request(pollfd &pf) {
             std::cout << "client with fd " << pf.fd;
             std::cout << " closed its half side of the connection" << std::endl;
         }
+        clients.erase(pf.fd);
         close(pf.fd);
         pf.fd = -1;
         return;
     }
-    buff[res] = '\0';
-    request_parser req_parser(buff);
-    std::string host_port = req_parser.get_headers().at("Host");
-    std::stringstream host_stream(host_port);
+
+    if (c.request_not_complete()) {
+        return;
+    }
+
+    request_parser req_parser(c.get_request());
+    const std::map<std::string, std::string> &headers = req_parser.get_headers();
+    std::string ip = inet_ntoa(c.get_local_addr());
     std::string host;
-    short port = 80;
-    std::getline(host_stream, host, ':');
-    if (host_stream.peek() != EOF) {
-        host_stream >> port;
+    in_port_t port = c.get_local_port();
+    if (headers.find("Host") != headers.end() && !headers.at("Host").empty()) {
+        const std::string &header_host = headers.at("Host");
+        size_t column_idx = header_host.find(':');
+        if (column_idx == std::string::npos) {
+            host = header_host;
+        } else {
+            host = header_host.substr(0, column_idx);
+        }
+    } else {
+        host = ip;
     }
     response_builder res_builder;
     std::string file;
-    const server_config &conf = get_matching_server(host, port);
-    file = conf.get_root() + req_parser.get_path();
-    if (*file.rbegin() == '/') {
+    const server_config &conf = get_matching_server(ip, host, port);
+    file = get_valid_path(conf.get_root(), req_parser.get_path());
+    struct stat s = {};
+    stat(file.c_str(), &s);
+    if (s.st_mode & S_IFDIR) {
+        if (*file.rbegin() != '/') {
+            file += "/";
+        }
         file += conf.get_indexes().at(0);
     }
     std::cout << "-----> file : " << file << std::endl;
     std::ifstream f(file.c_str());
+
     std::string mime;
     if (file.find(".jpeg") != std::string::npos) {
         mime = "image/jpeg";
@@ -255,6 +299,7 @@ void server::handle_request(pollfd &pf) {
     res = send(pf.fd, response.c_str(), response.size(), 0);
     if (res < 0) {
         std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
+        clients.erase(pf.fd);
         close(pf.fd);
         pf.fd = -1;
     }

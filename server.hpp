@@ -6,16 +6,19 @@
 #define WEBSERV_SERVER_HPP
 
 #include <arpa/inet.h>
-#include <iostream>
-#include <fstream>
 #include <netdb.h>
 #include <poll.h>
-#include <string>
 #include <sys/file.h>
-#include <sys/socket.h>
 #include <sys/select.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
+#include <fstream>
+#include <iostream>
+#include <string>
+
+#include "client.hpp"
 #include "config.hpp"
 #include "config_parser.hpp"
 #include "request_parser.hpp"
@@ -29,17 +32,16 @@ public:
     void start();
     void stop();
 private:
-    static const int BUFFER_SIZE;
-
     config conf;
     std::vector<int> socket_fds;
+    std::map<int, client> clients;
     std::vector<pollfd> poll_fds;
     bool is_running;
 
     void accept_connection(size_t index);
     void handle_request(pollfd &pf);
     void clean_fds();
-    const server_config &get_matching_server(const std::string &host, short port);
+    const server_config &get_matching_server(const std::string &ip, const std::string &host, in_port_t port);
 };
 
 #endif //WEBSERV_SERVER_HPP

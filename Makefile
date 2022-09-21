@@ -9,7 +9,8 @@ SRCS = main.cpp \
 	location_config.cpp \
 	response_builder.cpp \
 	request_parser.cpp \
-	config_parser.cpp
+	config_parser.cpp \
+	client.cpp
 
 DEPS = $(patsubst %.cpp,%.d,$(SRCS))
 OBJECTS = $(patsubst %.cpp,%.o,$(SRCS))

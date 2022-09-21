@@ -5,8 +5,10 @@
 #ifndef WEBSERV_SERVER_CONFIG_HPP
 #define WEBSERV_SERVER_CONFIG_HPP
 
-#include <string>
+#include <sys/types.h>
+
 #include <set>
+#include <string>
 #include <vector>
 
 #include "location_config.hpp"
@@ -16,8 +18,8 @@ public:
     server_config();
     const std::string &get_host() const;
     void set_host(const std::string &host);
-    short get_port() const;
-    void set_port(short port);
+    in_port_t get_port() const;
+    void set_port(in_port_t port);
     const std::string &get_root() const;
     void set_root(const std::string &root);
     const std::set<std::string> &get_server_names() const;
@@ -36,7 +38,7 @@ public:
     void set_indexes(const std::vector<std::string> &indexes);
 private:
     std::string host;
-    short port;
+    in_port_t port;
     std::string root;
     std::set<std::string> server_names;
     std::vector<location_config> location_configs;

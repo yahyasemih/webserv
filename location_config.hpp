@@ -5,8 +5,8 @@
 #ifndef WEBSERV_LOCATION_CONFIG_HPP
 #define WEBSERV_LOCATION_CONFIG_HPP
 
-#include <string>
 #include <set>
+#include <string>
 #include <vector>
 
 class location_config {
