@@ -175,7 +175,7 @@ bool config_parser::parse_config() {
                         }
                         const std::string &host_port = server_instruction_list.at(i).at(1);
                         std::string host;
-                        short port;
+                        in_port_t port;
                         size_t idx = host_port.find(':');
                         if (idx != std::string::npos) {
                             host = host_port.substr(0, idx);

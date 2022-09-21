@@ -3,7 +3,6 @@
 //
 
 #include "server.hpp"
-#include "config_parser.hpp"
 
 int main(int argc, char **argv) {
     std::string path;

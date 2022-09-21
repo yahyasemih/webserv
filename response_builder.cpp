@@ -4,8 +4,8 @@
 
 #include "response_builder.hpp"
 
-static std::map<short, std::string> init_map() {
-    std::map<short, std::string> map;
+static std::map<in_port_t, std::string> init_map() {
+    std::map<in_port_t, std::string> map;
 
     // Informational 1xx
     map.insert(std::make_pair(100, "Continue"));
@@ -62,7 +62,7 @@ const response_builder::status_map response_builder::status_str = init_map();
 response_builder::response_builder() : status(200), body_size(0) {
 }
 
-response_builder &response_builder::set_status(short status) {
+response_builder &response_builder::set_status(in_port_t status) {
     this->status = status;
     return *this;
 }

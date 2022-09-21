@@ -18,11 +18,11 @@ void server_config::set_host(const std::string &host) {
     this->host = host;
 }
 
-short server_config::get_port() const {
+in_port_t server_config::get_port() const {
     return port;
 }
 
-void server_config::set_port(short port) {
+void server_config::set_port(in_port_t port) {
     this->port = port;
 }
 
