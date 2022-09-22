@@ -4,10 +4,7 @@
 
 #include "server_config.hpp"
 
-server_config::server_config() : host("127.0.0.1"), port(80), root("."), error_page("error.html"),
-        access_log("/dev/stdout"), error_log("/dev/stderr"), client_max_body_size("80m") {
-    indexes.push_back("index.html");
-    indexes.push_back("index.htm");
+server_config::server_config() : host("127.0.0.1"), port(8080) {
 }
 
 const std::string &server_config::get_host() const {

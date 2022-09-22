@@ -5,9 +5,8 @@
 #include "http_config.hpp"
 
 http_config::http_config() : root("."), error_page("error.html"), access_log("/dev/stdout"),
-        error_log("/dev/stderr"), client_max_body_size("80m") {
+        client_max_body_size("80m") {
     indexes.push_back("index.html");
-    indexes.push_back("index.htm");
 }
 
 std::vector<server_config> &http_config::get_server_configs() {
