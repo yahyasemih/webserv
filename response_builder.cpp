@@ -89,7 +89,7 @@ response_builder &response_builder::append_body(std::istream &stream) {
         std::string str;
         //char buff[1000001];
         //stream.getline(buff, 1000000);
-        std::getline(stream, str, '\n');
+        std::getline(stream, str);
         if (stream.peek() != EOF) {
             str.push_back('\n');
         }

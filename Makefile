@@ -8,7 +8,7 @@ SRCS = main.cpp \
 	server_config.cpp \
 	location_config.cpp \
 	response_builder.cpp \
-	request_parser.cpp \
+	request_builder.cpp \
 	config_parser.cpp \
 	client.cpp
 
