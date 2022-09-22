@@ -4,10 +4,7 @@
 
 #include "location_config.hpp"
 
-location_config::location_config() : root("."), route("/"), error_page("error.html"),
-        client_max_body_size("80m"), redirect("no"), upload_dir("."), list_directory(true) {
-    indexes.push_back("index.html");
-    indexes.push_back("index.htm");
+location_config::location_config() : route("/"), redirect("no"), upload_dir("."), list_directory(true) {
     accepted_methods.insert("GET");
     accepted_methods.insert("POST");
     accepted_methods.insert("DELETE");

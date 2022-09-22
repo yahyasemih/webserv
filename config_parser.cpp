@@ -331,7 +331,54 @@ bool config_parser::parse_config() {
         error_line = line_nbr;
         return false;
     }
+    propagate();
     return true;
+}
+
+void config_parser::propagate() {
+    // Propagate from main scope to http scope
+    if (conf.get_http_conf().get_error_log().empty()) {
+        conf.get_http_conf().set_error_log(conf.get_error_log());
+    }
+    // Propagate from http scope to server scope
+    http_config &http_conf = conf.get_http_conf();
+    for (size_t i = 0; i < http_conf.get_server_configs().size(); ++i) {
+        server_config &server_conf = http_conf.get_server_configs().at(i);
+        if (server_conf.get_root().empty()) {
+            server_conf.set_root(http_conf.get_root());
+        }
+        if (server_conf.get_error_page().empty()) {
+            server_conf.set_error_page(http_conf.get_error_page());
+        }
+        if (server_conf.get_access_log().empty()) {
+            server_conf.set_access_log(http_conf.get_access_log());
+        }
+        if (server_conf.get_error_log().empty()) {
+            server_conf.set_error_log(http_conf.get_error_log());
+        }
+        if (server_conf.get_client_max_body_size().empty()) {
+            server_conf.set_client_max_body_size(http_conf.get_client_max_body_size());
+        }
+        if (server_conf.get_indexes().empty()) {
+            server_conf.set_indexes(http_conf.get_indexes());
+        }
+        // Propagate from server scope to location scope
+        for (size_t j = 0; j < server_conf.get_location_configs().size(); ++j) {
+            location_config &location_conf = server_conf.get_location_configs().at(j);
+            if (location_conf.get_root().empty()) {
+                location_conf.set_root(server_conf.get_root());
+            }
+            if (location_conf.get_error_page().empty()) {
+                location_conf.set_error_page(server_conf.get_error_page());
+            }
+            if (location_conf.get_client_max_body_size().empty()) {
+                location_conf.set_client_max_body_size(server_conf.get_client_max_body_size());
+            }
+            if (location_conf.get_indexes().empty()) {
+                location_conf.set_indexes(server_conf.get_indexes());
+            }
+        }
+    }
 }
 
 void config_parser::compile() {

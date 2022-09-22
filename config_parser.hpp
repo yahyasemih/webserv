@@ -30,6 +30,7 @@ public:
     config &get_result();
 private:
     bool parse_config();
+    void propagate();
 
     config conf;
     scope_map_t scope_to_instructions;
