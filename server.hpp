@@ -31,6 +31,7 @@ public:
     void start();
     void stop();
 private:
+    static const std::map<std::string, std::string> mime_type_map;
     config conf;
     std::vector<int> socket_fds;
     std::map<int, client> clients;
@@ -41,6 +42,8 @@ private:
     void handle_request(pollfd &pf);
     void clean_fds();
     const server_config &get_matching_server(const std::string &ip, const std::string &host, in_port_t port);
+
+    static std::string get_mime_type(const std::string &file);
 };
 
 #endif //WEBSERV_SERVER_HPP
