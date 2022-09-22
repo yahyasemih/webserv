@@ -21,7 +21,6 @@
 #include "client.hpp"
 #include "config.hpp"
 #include "config_parser.hpp"
-#include "request_parser.hpp"
 #include "response_builder.hpp"
 
 class server {

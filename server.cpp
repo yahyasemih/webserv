@@ -154,6 +154,7 @@ void server::start() {
                         accept_connection(index);
                     } else if (pf.revents & POLLHUP) {
                         std::cout << "connection to fd " << pf.fd << " closed" << std::endl;
+                        clients.erase(pf.fd);
                         close(pf.fd);
                         pf.fd = -1;
                     } else if (pf.revents & POLLIN) {
@@ -251,13 +252,12 @@ void server::handle_request(pollfd &pf) {
         return;
     }
 
-    request_parser req_parser(c.get_request());
-    const std::map<std::string, std::string> &headers = req_parser.get_headers();
+    request_builder req_builder(c.get_request());
     std::string ip = inet_ntoa(c.get_local_addr());
     std::string host;
     in_port_t port = c.get_local_port();
-    if (headers.find("Host") != headers.end() && !headers.at("Host").empty()) {
-        const std::string &header_host = headers.at("Host");
+    std::string &header_host = req_builder.get_header("Host");
+    if (!header_host.empty()) {
         size_t column_idx = header_host.find(':');
         if (column_idx == std::string::npos) {
             host = header_host;
@@ -270,7 +270,7 @@ void server::handle_request(pollfd &pf) {
     response_builder res_builder;
     std::string file;
     const server_config &conf = get_matching_server(ip, host, port);
-    file = get_valid_path(conf.get_root(), req_parser.get_path());
+    file = get_valid_path(conf.get_root(), req_builder.get_path());
     struct stat s = {};
     stat(file.c_str(), &s);
     if (s.st_mode & S_IFDIR) {
@@ -279,7 +279,6 @@ void server::handle_request(pollfd &pf) {
         }
         file += conf.get_indexes().at(0);
     }
-    std::cout << "-----> file : " << file << std::endl;
     std::ifstream f(file.c_str());
 
     std::string mime;
@@ -304,7 +303,10 @@ void server::handle_request(pollfd &pf) {
         res_builder.append_body(f);
     }
     std::string response = res_builder.build();
-    res = send(pf.fd, response.c_str(), response.size(), 0);
+    while ((res = send(pf.fd, response.c_str(), response.size(), 0)) < static_cast<ssize_t>(response.size())
+            && res >= 0) {
+        response = response.substr(res);
+    }
     if (res < 0) {
         std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
         clients.erase(pf.fd);
