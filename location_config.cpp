@@ -4,7 +4,8 @@
 
 #include "location_config.hpp"
 
-location_config::location_config() : route("/"), redirect("no"), upload_dir("."), list_directory(true) {
+location_config::location_config() : route("/"), client_max_body_size(), redirect("no"), upload_dir("."),
+        list_directory(true) {
     accepted_methods.insert("GET");
     accepted_methods.insert("POST");
     accepted_methods.insert("DELETE");
@@ -50,11 +51,11 @@ void location_config::set_error_page(const std::string &error_page) {
     this->error_page = error_page;
 }
 
-const std::string &location_config::get_client_max_body_size() const {
+size_t location_config::get_client_max_body_size() const {
     return client_max_body_size;
 }
 
-void location_config::set_client_max_body_size(const std::string &client_max_body_size) {
+void location_config::set_client_max_body_size(size_t client_max_body_size) {
     this->client_max_body_size = client_max_body_size;
 }
 

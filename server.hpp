@@ -33,6 +33,7 @@ public:
     void start();
     void stop();
 private:
+    static const std::string ENTITY_TOO_LARGE_ERROR_PAGE; // TODO: make it a map status -> default error page
     static const std::map<std::string, std::string> mime_type_map;
     config conf;
     std::vector<int> socket_fds;
@@ -44,10 +45,8 @@ private:
     void handle_request(pollfd &pf);
     void clean_fds();
     const server_config &get_matching_server(const std::string &ip, const std::string &host, in_port_t port);
-    void run_static(pollfd &pf, ssize_t res, response_builder &res_builder, const std::string &file,
-                    const location_config &location_conf, std::string &response);
-    static void run_cgi(const pollfd &pf, request_builder &req_builder, const std::string &file,
-                        const location_config &location_conf);
+    static void run_static(response_builder &res_builder, const std::string &file, const location_config &location_conf);
+    static void run_cgi(request_builder &req_builder, const std::string &file, const location_config &location_conf);
     static const location_config &get_matching_location(const std::string &path, const server_config & server_conf);
     static std::string get_mime_type(const std::string &file);
     static std::string get_file_extension(const std::string &file);

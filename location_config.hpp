@@ -22,8 +22,8 @@ public:
     void set_cgi_path(const std::string &cgi_path);
     const std::string &get_cgi_extension() const;
     void set_cgi_extension(const std::string &cgi_extension);
-    const std::string &get_client_max_body_size() const;
-    void set_client_max_body_size(const std::string &client_max_body_size);
+    size_t get_client_max_body_size() const;
+    void set_client_max_body_size(size_t client_max_body_size);
     const std::set<std::string> &get_accepted_methods() const;
     void set_accepted_methods(const std::set<std::string> &accepted_methods);
     const std::string &get_redirect() const;
@@ -43,7 +43,7 @@ private:
     std::string cgi_path;
     std::string cgi_extension;
     std::string error_page;
-    std::string client_max_body_size;
+    size_t client_max_body_size;
     std::set<std::string> accepted_methods;
     std::string redirect;
     std::vector<std::string> indexes;
