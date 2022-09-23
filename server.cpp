@@ -30,6 +30,18 @@ const std::string server::FORBIDDEN_ERROR_PAGE =
             "\t</body>\r\n"
         "</html>";
 
+const std::string server::METHOD_NOT_ALLOWED_ERROR_PAGE =
+        "<html>\r\n"
+            "\t<head>\r\n"
+                "\t\t<title>405 Method Not Allowed</title>\r\n"
+            "\t</head>\r\n"
+            "\t<body>\r\n"
+                "\t\t<center><h1>405 Method Not Allowed</h1></center>\r\n"
+                "\t\t<hr>\r\n"
+                "\t\t<center>yez-zain-server/1.0.0 (UNIX)</center>\r\n"
+            "\t</body>\r\n"
+        "</html>";
+
 static std::map<std::string, std::string> mime_types() {
     std::map<std::string, std::string> types;
 
@@ -386,7 +398,12 @@ void server::handle_request(pollfd &pf) {
     const location_config &location_conf = get_matching_location(req_builder.get_uri(), server_conf);
     std::string response;
     size_t body_limit = location_conf.get_client_max_body_size();
-    if (body_limit > 0 && body_limit < req_builder.get_body().size()) {
+    const std::set<std::string> &accepted_methods = location_conf.get_accepted_methods();
+    if (accepted_methods.find(req_builder.get_method()) == accepted_methods.end()) {
+        res_builder.set_status(405)
+                .set_body(METHOD_NOT_ALLOWED_ERROR_PAGE);
+        response = res_builder.build();
+    } else if (body_limit > 0 && body_limit < req_builder.get_body().size()) {
         res_builder.set_status(413);
         std::string error_page = location_conf.get_root() + "/" + location_conf.get_error_page();
         if (!access(error_page.c_str(), F_OK | R_OK)) {
