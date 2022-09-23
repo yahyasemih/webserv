@@ -2,6 +2,7 @@
 // Created by Yahya Ez-zainabi on 9/18/22.
 //
 
+#include <iostream>
 #include "config_parser.hpp"
 
 static std::set<std::string> get_valid_scopes() {
@@ -44,13 +45,15 @@ bool config_parser::parse_config() {
             continue;
         }
         size_t start = line.find_first_not_of("\r\t\f\v ");
-        if (start != std::string::npos) {
-            line = line.substr(start);
+        if (start == std::string::npos) {
+            continue;
         }
+        line = line.substr(start);
         size_t end = line.find_last_not_of("\r\t\f\v ");
-        if (end != std::string::npos) {
-            line.erase(end + 1);
+        if (end == std::string::npos) {
+            continue;
         }
+        line.erase(end + 1);
         if (line.empty()) {
             continue;
         }
@@ -256,6 +259,20 @@ bool config_parser::parse_config() {
                             return false;
                         }
                         location_conf.set_root(location_instruction_list.at(i).at(1));
+                    } else if (location_instruction_list.at(i).at(0) == "cgi_path") {
+                        if (location_instruction_list.at(i).size() != 2) {
+                            error_message = "Invalid number of args for 'cgi_path'";
+                            error_line = line_nbr;
+                            return false;
+                        }
+                        location_conf.set_cgi_path(location_instruction_list.at(i).at(1));
+                    } else if (location_instruction_list.at(i).at(0) == "cgi_extension") {
+                        if (location_instruction_list.at(i).size() != 2) {
+                            error_message = "Invalid number of args for 'cgi_extension'";
+                            error_line = line_nbr;
+                            return false;
+                        }
+                        location_conf.set_cgi_extension(location_instruction_list.at(i).at(1));
                     } else if (location_instruction_list.at(i).at(0) == "error_page") {
                         if (location_instruction_list.at(i).size() != 2) {
                             error_message = "Invalid number of args for 'error_page'";

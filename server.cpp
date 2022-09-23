@@ -4,6 +4,8 @@
 
 #include "server.hpp"
 
+extern char **environ;
+
 static std::map<std::string, std::string> mime_types() {
     std::map<std::string, std::string> types;
 
@@ -120,62 +122,6 @@ server::server(const std::string &config_file) : is_running() {
         throw std::runtime_error(error_msg.str());
     } else {
         conf = parser.get_result();
-        std::cout << "result: " << std::endl;
-        std::cout << "\t error_log: " << conf.get_error_log() << std::endl;
-        std::cout << "\t http config: " << std::endl;
-        std::cout << "\t\t root: " << conf.get_http_conf().get_root() << std::endl;
-        std::cout << "\t\t error_page: " << conf.get_http_conf().get_error_page() << std::endl;
-        std::cout << "\t\t access_log: " << conf.get_http_conf().get_access_log() << std::endl;
-        std::cout << "\t\t error_log: " << conf.get_http_conf().get_error_log() << std::endl;
-        std::cout << "\t\t client_max_body_size: " << conf.get_http_conf().get_client_max_body_size() << std::endl;
-        std::cout << "\t\t index: ";
-        for (size_t i = 0 ; i < conf.get_http_conf().get_indexes().size(); ++i) {
-            std::cout << conf.get_http_conf().get_indexes().at(i) << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "\t\t server_configs: " << conf.get_http_conf().get_server_configs().size() << std::endl;
-        for (size_t i = 0; i < conf.get_http_conf().get_server_configs().size(); ++i) {
-            server_config &server_conf = conf.get_http_conf().get_server_configs().at(i);
-            std::cout << "\t\t\t listen: " << server_conf.get_host() << ":" << server_conf.get_port() << std::endl;
-            std::cout << "\t\t\t root: " << server_conf.get_root() << std::endl;
-            std::cout << "\t\t\t error_page: " << server_conf.get_error_page() << std::endl;
-            std::cout << "\t\t\t access_log: " << server_conf.get_access_log() << std::endl;
-            std::cout << "\t\t\t error_log: " << server_conf.get_error_log() << std::endl;
-            std::cout << "\t\t\t client_max_body_size: " << server_conf.get_client_max_body_size() << std::endl;
-            std::cout << "\t\t\t index: ";
-            for (size_t i = 0 ; i < server_conf.get_indexes().size(); ++i) {
-                std::cout << server_conf.get_indexes().at(i) << " ";
-            }
-            std::cout << std::endl;
-            std::cout << "\t\t\t server_names: ";
-            std::set<std::string>::iterator it = server_conf.get_server_names().begin();
-            for (; it != server_conf.get_server_names().end(); ++it) {
-                std::cout << *it << " ";
-            }
-            std::cout << std::endl;
-            std::cout << "\t\t\t locations: " << server_conf.get_location_configs().size() << std::endl;
-            for (size_t j = 0; j < server_conf.get_location_configs().size(); ++j) {
-                location_config &location_conf = server_conf.get_location_configs().at(j);
-                std::cout << "\t\t\t\t route: " << location_conf.get_route() << std::endl;
-                std::cout << "\t\t\t\t root: " << location_conf.get_root() << std::endl;
-                std::cout << "\t\t\t\t error_page: " << location_conf.get_error_page() << std::endl;
-                std::cout << "\t\t\t\t client_max_body_size: " << location_conf.get_client_max_body_size() << std::endl;
-                std::cout << "\t\t\t\t index: ";
-                for (size_t i = 0 ; i < location_conf.get_indexes().size(); ++i) {
-                    std::cout << location_conf.get_indexes().at(i) << " ";
-                }
-                std::cout << std::endl;
-                std::cout << "\t\t\t\t redirect: " << location_conf.get_redirect() << std::endl;
-                std::cout << "\t\t\t\t upload_dir: " << location_conf.get_upload_dir() << std::endl;
-                std::cout << "\t\t\t\t list_directory: " << location_conf.is_list_directory() << std::endl;
-                std::cout << "\t\t\t\t accept: ";
-                std::set<std::string>::iterator it = location_conf.get_accepted_methods().begin();
-                for (; it != location_conf.get_accepted_methods().end(); ++it) {
-                    std::cout << *it << " ";
-                }
-                std::cout << std::endl;
-            }
-        }
     }
     protoent *protocol;
     int options = 1;
@@ -229,7 +175,7 @@ void server::accept_connection(size_t index) {
     sockaddr_in socket_addr = {};
     socklen_t addr_len = sizeof(socket_addr);
     if (getsockname(socket_fds[index], (sockaddr *)&socket_addr, &addr_len)) {
-        perror("get socket name failed: ");
+        perror("get socket name failed : ");
     }
     sockaddr_in socket_remote_addr = {};
     int new_socket = accept(socket_fds[index], (sockaddr *)&socket_remote_addr, &addr_len);
@@ -304,6 +250,23 @@ const server_config &server::get_matching_server(const std::string &ip, const st
     return *server_conf_ptr;
 }
 
+const location_config &server::get_matching_location(const std::string &path, const server_config & server_conf) {
+    size_t idx = 0;
+    std::string ext = get_file_extension(path);
+
+    for (size_t i = 0; i < server_conf.get_location_configs().size(); ++i) {
+        const location_config &location_conf = server_conf.get_location_configs().at(i);
+        if (path.find(location_conf.get_route()) == 0) {
+            idx = i;
+        }
+        if (location_conf.is_cgi_route() && location_conf.get_cgi_extension() == ext) {
+            idx = i;
+            break;
+        }
+    }
+    return server_conf.get_location_configs().at(idx);
+}
+
 static bool ends_with(const std::string &value, const std::string &ending)
 {
     if (ending.size() > value.size()) {
@@ -312,7 +275,7 @@ static bool ends_with(const std::string &value, const std::string &ending)
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-static std::string get_valid_path(const std::string &root, std::string path) {
+std::string server::get_valid_path(const std::string &root, std::string path) {
     std::string res;
     size_t idx;
 
@@ -334,13 +297,24 @@ static std::string get_valid_path(const std::string &root, std::string path) {
     return root + res;
 }
 
-static std::string get_file_extension(const std::string &file) {
+std::string server::get_file_extension(const std::string &file) {
     std::string ext;
     size_t idx = file.find_last_of('.');
     if (idx == std::string::npos) {
         ext = "";
     } else {
         ext = file.substr(idx);
+    }
+    return ext;
+}
+
+std::string server::get_file_basename(const std::string &file) {
+    std::string ext;
+    size_t idx = file.find_last_of('/');
+    if (idx == std::string::npos) {
+        ext = file;
+    } else {
+        ext = file.substr(idx + 1);
     }
     return ext;
 }
@@ -383,33 +357,44 @@ void server::handle_request(pollfd &pf) {
     }
     response_builder res_builder;
     std::string file;
-    const server_config &conf = get_matching_server(ip, host, port);
-    file = get_valid_path(conf.get_root(), req_builder.get_path());
+    const server_config &server_conf = get_matching_server(ip, host, port);
+    file = get_valid_path(server_conf.get_root(), req_builder.get_path());
+    const location_config &location_conf = get_matching_location(req_builder.get_uri(), server_conf);
     struct stat s = {};
     stat(file.c_str(), &s);
     if (s.st_mode & S_IFDIR) {
         if (*file.rbegin() != '/') {
             file += "/";
         }
-        file += conf.get_indexes().at(0);
+        file += server_conf.get_indexes().at(0);
     }
+    std::string response;
+    if (location_conf.is_cgi_route() && get_file_extension(file) == location_conf.get_cgi_extension()) {
+        run_cgi(pf, req_builder, file, location_conf);
+    } else {
+        run_static(pf, res, res_builder, file, location_conf, response);
+    }
+}
+
+void server::run_static(pollfd &pf, ssize_t res, response_builder &res_builder, const std::string &file,
+                        const location_config &location_conf, std::string &response) {
     std::ifstream f(file.c_str());
     if (f.is_open()) {
         res_builder.set_status(200);
     } else {
-        std::ifstream error_file(conf.get_error_page().c_str());
+        std::ifstream error_file(location_conf.get_error_page().c_str());
         res_builder.set_status(404)
                 .append_body(error_file);
+    }
+    if (f.is_open()) {
+        res_builder.append_body(f);
     }
     res_builder.set_header("Server", "yez-zain-server/1.0.0 (UNIX)")
             .set_header("Content-Type", get_mime_type(file))
             .set_header("Connection", "keep-alive");
-    if (f.is_open()) {
-        res_builder.append_body(f);
-    }
-    std::string response = res_builder.build();
+    response = res_builder.build();
     while ((res = send(pf.fd, response.c_str(), response.size(), 0)) < static_cast<ssize_t>(response.size())
-            && res >= 0) {
+           && res >= 0) {
         response = response.substr(res);
     }
     if (res < 0) {
@@ -417,6 +402,91 @@ void server::handle_request(pollfd &pf) {
         clients.erase(pf.fd);
         close(pf.fd);
         pf.fd = -1;
+    }
+}
+
+static int update_header_key(char c) {
+    if (c == '-') {
+        return '_';
+    }
+    return toupper(c);
+}
+
+void server::run_cgi(const pollfd &pf, request_builder &req_builder, const std::string &file,
+                     const location_config &location_conf) {
+    int pipe_fd[2];
+    int pipe_fd2[2];
+    pipe(pipe_fd);
+    pipe(pipe_fd2);
+    int pid = fork();
+    if (pid == 0) {
+        chdir(location_conf.get_root().c_str());
+        setenv("GATEWAY_INTERFACE", "CGI/1.1", 1);
+        setenv("SERVER_PROTOCOL", "HTTP/1.1", 1);
+        setenv("PATH_INFO", "", 1);
+        setenv("REQUEST_URI", req_builder.get_uri().c_str(), 1);
+        setenv("REQUEST_METHOD", req_builder.get_method().c_str(), 1);
+        setenv("SCRIPT_FILENAME", (location_conf.get_root() + req_builder.get_path()).c_str(), 1);
+        setenv("SCRIPT_NAME", get_file_basename(req_builder.get_path()).c_str(), 1);
+        setenv("REDIRECT_STATUS", "200", 1);
+        setenv("CONTENT_TYPE", req_builder.get_header("Content-Type").c_str(), 1);
+        setenv("CONTENT_LENGTH", req_builder.get_header("Content-Length").c_str(), 1);
+        setenv("DOCUMENT_ROOT", location_conf.get_root().c_str(), 1);
+        setenv("TMPDIR", location_conf.get_upload_dir().c_str(), 1);
+        if (req_builder.get_method() == "GET") {
+            setenv("QUERY_STRING", req_builder.get_query_string().c_str(), 1);
+            setenv("CONTENT_LENGTH", "0", 1);
+        }
+        const std::map<std::string, std::string> &headers = req_builder.get_headers();
+        for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+            std::string key = "HTTP_";
+            std::transform(it->first.begin(), it->first.end(), std::back_inserter(key), update_header_key);
+            setenv(key.c_str(), it->second.c_str(), 1);
+        }
+
+        close(pipe_fd[0]);
+        dup2(pipe_fd[1], 1);
+        close(pipe_fd[1]);
+
+        close(pipe_fd2[1]);
+        dup2(pipe_fd2[0], 0);
+        close(pipe_fd2[0]);
+        const char * args[3] = {location_conf.get_cgi_path().c_str(), file.c_str(), NULL};
+        execve(args[0], const_cast<char **>(args), environ);
+    } else {
+        // TODO: refactor and properly set error code and body in case of error in CGI
+        std::stringstream strm;
+        char buffer[1001];
+        close(pipe_fd[1]);
+        close(pipe_fd2[0]);
+
+        write(pipe_fd2[1], req_builder.get_body().c_str(), req_builder.get_body().size());
+        close(pipe_fd2[1]);
+        ssize_t r;
+        while ((r = read(pipe_fd[0], buffer, 1000)) != 0) {
+            buffer[r] = '\0';
+            strm << buffer;
+        }
+        int status;
+        waitpid(pid, &status, 0);
+        std::stringstream final_stream;
+        if (status == 0) {
+            final_stream << "HTTP/1.1 200 OK\r\n";
+        } else {
+            final_stream << "HTTP/1.1 500 Internal Server Error\r\n";
+        }
+        std::string line;
+        while (std::getline(strm, line) && !line.empty() && line != "\r") {
+            final_stream << line << "\n";
+        }
+        const std::string &str = strm.str();
+        size_t pos = strm.tellg();
+        if (pos > 0) {
+            --pos;
+        }
+        final_stream << "Content-length: " << str.size() - pos << "\r\n\r\n";
+        final_stream << (str.c_str() + pos);
+        write(pf.fd, final_stream.str().c_str(), final_stream.str().size());
     }
 }
 

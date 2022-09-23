@@ -10,12 +10,12 @@ location_config::location_config() : route("/"), redirect("no"), upload_dir(".")
     accepted_methods.insert("DELETE");
 }
 
-void location_config::set_root(const std::string &root) {
-    this->root = root;
-}
-
 const std::string &location_config::get_root() const {
     return root;
+}
+
+void location_config::set_root(const std::string &root) {
+    this->root = root;
 }
 
 const std::string &location_config::get_route() const {
@@ -24,6 +24,22 @@ const std::string &location_config::get_route() const {
 
 void location_config::set_route(const std::string &route) {
     this->route = route;
+}
+
+const std::string &location_config::get_cgi_path() const {
+    return cgi_path;
+}
+
+void location_config::set_cgi_path(const std::string &cgi_path) {
+    this->cgi_path = cgi_path;
+}
+
+const std::string &location_config::get_cgi_extension() const {
+    return cgi_extension;
+}
+
+void location_config::set_cgi_extension(const std::string &cgi_extension) {
+    this->cgi_extension = cgi_extension;
 }
 
 const std::string &location_config::get_error_page() const {
@@ -79,4 +95,8 @@ bool location_config::is_list_directory() const {
 
 void location_config::set_list_directory(bool list_directory) {
     this->list_directory = list_directory;
+}
+
+bool location_config::is_cgi_route() const {
+    return !cgi_path.empty() && !cgi_extension.empty();
 }

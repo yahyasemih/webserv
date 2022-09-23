@@ -19,6 +19,7 @@ ssize_t client::receive() {
         return res;
     }
     buffer[res] = '\0';
+    content.clear();
     content << buffer;
     process_received_data();
     return res;
@@ -30,7 +31,9 @@ bool client::request_not_complete() const {
 
 request_builder client::get_request() {
     reset();
-    return req_builder;
+    request_builder res = req_builder;
+    req_builder.reset();
+    return res;
 }
 
 in_addr client::get_local_addr() const {
@@ -106,6 +109,7 @@ void client::process_received_data() {
             request_line_stream >> method;
             request_line_stream >> path;
             request_line_stream >> http_version;
+            req_builder.set_uri(path);
             size_t idx = path.find('?');
             if (idx != std::string::npos) {
                 query_string = path.c_str() + idx + 1;
@@ -151,7 +155,7 @@ void client::process_received_data() {
 
     while (std::getline(content, request_line)) {
         req_builder.set_body(request_line);
-        if (content.peek() != EOF) {
+        if (content.good()) {
             req_builder.set_body("\n");
         }
     }
