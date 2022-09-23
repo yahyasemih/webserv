@@ -35,6 +35,7 @@ public:
 private:
     static const std::string ENTITY_TOO_LARGE_ERROR_PAGE; // TODO: make it a map status -> default error page
     static const std::string FORBIDDEN_ERROR_PAGE;
+    static const std::string METHOD_NOT_ALLOWED_ERROR_PAGE;
     static const std::map<std::string, std::string> mime_type_map;
     config conf;
     std::vector<int> socket_fds;
