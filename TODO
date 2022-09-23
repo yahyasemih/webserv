@@ -1,7 +1,6 @@
 TODO: If directory listing disabled and no index set -> 403 forbidden
 TODO: Make error_page based on error code -> a page for 403, another one for 404, etc
 TODO: Add directory listing logic
-TODO: Handle index page correctly: search in indexes for existing page, if not try directory listing if enabled, if not send 403
 TODO: Support listening to multiple ports in a single server
 TODO: Close/keep connection based on 'Connection' header value
 TODO: Support second CGI (other that PHP)

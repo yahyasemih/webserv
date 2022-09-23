@@ -18,6 +18,18 @@ const std::string server::ENTITY_TOO_LARGE_ERROR_PAGE =
             "\t</body>\r\n"
         "</html>";
 
+const std::string server::FORBIDDEN_ERROR_PAGE =
+        "<html>\r\n"
+            "\t<head>\r\n"
+                "\t\t<title>403 Forbidden</title>\r\n"
+            "\t</head>\r\n"
+            "\t<body>\r\n"
+                "\t\t<center><h1>403 Forbidden</h1></center>\r\n"
+                "\t\t<hr>\r\n"
+                "\t\t<center>yez-zain-server/1.0.0 (UNIX)</center>\r\n"
+            "\t</body>\r\n"
+        "</html>";
+
 static std::map<std::string, std::string> mime_types() {
     std::map<std::string, std::string> types;
 
@@ -377,7 +389,6 @@ void server::handle_request(pollfd &pf) {
     if (body_limit > 0 && body_limit < req_builder.get_body().size()) {
         res_builder.set_status(413);
         std::string error_page = location_conf.get_root() + "/" + location_conf.get_error_page();
-        std::cout << "error_page: " << error_page << std::endl;
         if (!access(error_page.c_str(), F_OK | R_OK)) {
             std::ifstream f(error_page.c_str());
             res_builder.append_body(f);
@@ -385,21 +396,8 @@ void server::handle_request(pollfd &pf) {
             res_builder.set_body(ENTITY_TOO_LARGE_ERROR_PAGE);
         }
     } else {
-        struct stat s = {};
-        stat(file.c_str(), &s);
-        if (s.st_mode & S_IFDIR) {
-            if (*file.rbegin() != '/') {
-                file += "/";
-            }
-            file += server_conf.get_indexes().at(0);
-        }
-        if (location_conf.is_cgi_route() && get_file_extension(file) == location_conf.get_cgi_extension()) {
-            run_cgi(req_builder, file, location_conf);
-        } else {
-            run_static(res_builder, file, location_conf);
-        }
+        process_request(req_builder, res_builder, file, location_conf, response);
     }
-    response = res_builder.build();
     while ((res = send(pf.fd, response.c_str(), response.size(), 0)) < static_cast<ssize_t>(response.size())
            && res >= 0) {
         response = response.substr(res);
@@ -409,6 +407,47 @@ void server::handle_request(pollfd &pf) {
         clients.erase(pf.fd);
         close(pf.fd);
         pf.fd = -1;
+    }
+}
+
+void server::process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
+                             const location_config &location_conf, std::string &response) {
+    struct stat s = {};
+    stat(file.c_str(), &s);
+    if (s.st_mode & S_IFDIR) {
+        if (*file.rbegin() != '/') {
+            file += "/";
+        }
+        size_t i = 0;
+        while (i < location_conf.get_indexes().size()) {
+            std::string index_to_check = file + location_conf.get_indexes().at(i);
+            if (!access(index_to_check.c_str(), F_OK | R_OK)) {
+                break;
+            }
+            ++i;
+        }
+        if (i == location_conf.get_indexes().size()) { // fallback to directory listing
+            if (location_conf.is_list_directory()) {
+                // TODO: handle index
+                res_builder.set_status(200)
+                        .set_body("// TODO: handle index");
+                response = res_builder.build();
+                return;
+            } else {
+                res_builder.set_status(403)
+                        .set_body(FORBIDDEN_ERROR_PAGE);
+                response = res_builder.build();
+                return;
+            }
+        } else {
+            file += location_conf.get_indexes().at(i);
+        }
+    }
+    if (location_conf.is_cgi_route() && get_file_extension(file) == location_conf.get_cgi_extension()) {
+        run_cgi(req_builder, file, location_conf, response);
+    } else {
+        run_static(res_builder, file, location_conf);
+        response = res_builder.build();
     }
 }
 
@@ -436,7 +475,8 @@ static int update_header_key(char c) {
     return toupper(c);
 }
 
-void server::run_cgi(request_builder &req_builder, const std::string &file, const location_config &location_conf) {
+void server::run_cgi(request_builder &req_builder, const std::string &file, const location_config &location_conf,
+                     std::string &response) {
     int pipe_fd[2];
     int pipe_fd2[2];
     pipe(pipe_fd);
@@ -449,8 +489,8 @@ void server::run_cgi(request_builder &req_builder, const std::string &file, cons
         setenv("PATH_INFO", "", 1);
         setenv("REQUEST_URI", req_builder.get_uri().c_str(), 1);
         setenv("REQUEST_METHOD", req_builder.get_method().c_str(), 1);
-        setenv("SCRIPT_FILENAME", (location_conf.get_root() + req_builder.get_path()).c_str(), 1);
-        setenv("SCRIPT_NAME", get_file_basename(req_builder.get_path()).c_str(), 1);
+        setenv("SCRIPT_FILENAME", file.c_str(), 1);
+        setenv("SCRIPT_NAME", get_file_basename(file).c_str(), 1);
         setenv("REDIRECT_STATUS", "200", 1);
         setenv("CONTENT_TYPE", req_builder.get_header("Content-Type").c_str(), 1);
         setenv("CONTENT_LENGTH", req_builder.get_header("Content-Length").c_str(), 1);
@@ -510,6 +550,7 @@ void server::run_cgi(request_builder &req_builder, const std::string &file, cons
         }
         final_stream << "Content-length: " << str.size() - pos << "\r\n\r\n";
         final_stream << (str.c_str() + pos);
+        response = final_stream.str();
     }
 }
 
