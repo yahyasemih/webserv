@@ -33,8 +33,8 @@ public:
     void set_access_log(const std::string &access_log);
     const std::string &get_error_log() const;
     void set_error_log(const std::string &error_log);
-    const std::string &get_client_max_body_size() const;
-    void set_client_max_body_size(const std::string &client_max_body_size);
+    size_t get_client_max_body_size() const;
+    void set_client_max_body_size(size_t client_max_body_size);
     const std::vector<std::string> &get_indexes() const;
     void set_indexes(const std::vector<std::string> &indexes);
 private:
@@ -46,7 +46,7 @@ private:
     std::string error_page;
     std::string access_log;
     std::string error_log;
-    std::string client_max_body_size;
+    size_t client_max_body_size;
     std::vector<std::string> indexes;
 };
 

@@ -4,7 +4,7 @@
 
 #include "server_config.hpp"
 
-server_config::server_config() : host("127.0.0.1"), port(8080) {
+server_config::server_config() : host("127.0.0.1"), port(8080), client_max_body_size() {
 }
 
 const std::string &server_config::get_host() const {
@@ -75,11 +75,11 @@ void server_config::set_error_log(const std::string &error_log) {
     this->error_log = error_log;
 }
 
-const std::string &server_config::get_client_max_body_size() const {
+size_t server_config::get_client_max_body_size() const {
     return client_max_body_size;
 }
 
-void server_config::set_client_max_body_size(const std::string &client_max_body_size) {
+void server_config::set_client_max_body_size(size_t client_max_body_size) {
     this->client_max_body_size = client_max_body_size;
 }
 

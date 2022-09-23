@@ -2,7 +2,6 @@
 // Created by Yahya Ez-zainabi on 9/18/22.
 //
 
-#include <iostream>
 #include "config_parser.hpp"
 
 static std::set<std::string> get_valid_scopes() {
@@ -20,6 +19,31 @@ const std::set<std::string> config_parser::valid_scopes = get_valid_scopes();
 
 config_parser::config_parser(const std::string &config_file) : config_file(config_file),
         error_line(std::numeric_limits<size_t>::max()) {
+}
+
+static bool is_valid_client_max_body_size(const std::string &client_max_body_size_str) {
+    for (size_t i = 0; i < client_max_body_size_str.size() - 1; ++i) {
+        if (!isdigit(client_max_body_size_str[i])) {
+            return false;
+        }
+    }
+    std::string valid_units("bkmgBKMG");
+    return valid_units.find(*client_max_body_size_str.rbegin()) != std::string::npos;
+}
+
+static size_t translate_client_max_body_size(const std::string &client_max_body_size_str) {
+    std::map<char, size_t> multiplier;
+    multiplier.insert(std::make_pair('b', 1));
+    multiplier.insert(std::make_pair('B', 1));
+    multiplier.insert(std::make_pair('k', 1024));
+    multiplier.insert(std::make_pair('K', 1024));
+    multiplier.insert(std::make_pair('m', 1024 * 1024));
+    multiplier.insert(std::make_pair('M', 1024 * 1024));
+    multiplier.insert(std::make_pair('g', 1024 * 1024 * 1024));
+    multiplier.insert(std::make_pair('G', 1024 * 1024 * 1024));
+
+    size_t size = strtoull(client_max_body_size_str.c_str(), NULL, 10);
+    return size * multiplier[*client_max_body_size_str.rbegin()];
 }
 
 bool config_parser::parse_config() {
@@ -154,7 +178,14 @@ bool config_parser::parse_config() {
                             error_line = line_nbr;
                             return false;
                         }
-                        http_conf.set_client_max_body_size(http_instruction_list.at(i).at(1));
+                        const std::string &arg = http_instruction_list.at(i).at(1);
+                        if (!is_valid_client_max_body_size(arg)) {
+                            error_message = "Invalid argument for 'client_max_body_size' : " + arg;
+                            error_line = line_nbr;
+                            return false;
+                        }
+                        size_t size = translate_client_max_body_size(arg);
+                        http_conf.set_client_max_body_size(size);
                     } else if (http_instruction_list.at(i).at(0) == "index") {
                         std::vector<std::string> indexes(http_instruction_list.at(i).begin() + 1,
                                                          http_instruction_list.at(i).end());
@@ -229,7 +260,14 @@ bool config_parser::parse_config() {
                             error_line = line_nbr;
                             return false;
                         }
-                        server_conf.set_client_max_body_size(server_instruction_list.at(i).at(1));
+                        const std::string &arg = server_instruction_list.at(i).at(1);
+                        if (!is_valid_client_max_body_size(arg)) {
+                            error_message = "Invalid argument for 'client_max_body_size' : " + arg;
+                            error_line = line_nbr;
+                            return false;
+                        }
+                        size_t size = translate_client_max_body_size(arg);
+                        server_conf.set_client_max_body_size(size);
                     } else if (server_instruction_list.at(i).at(0) == "index") {
                         std::vector<std::string> indexes(server_instruction_list.at(i).begin() + 1,
                                                          server_instruction_list.at(i).end());
@@ -286,7 +324,14 @@ bool config_parser::parse_config() {
                             error_line = line_nbr;
                             return false;
                         }
-                        location_conf.set_client_max_body_size(location_instruction_list.at(i).at(1));
+                        const std::string &arg = location_instruction_list.at(i).at(1);
+                        if (!is_valid_client_max_body_size(arg)) {
+                            error_message = "Invalid argument for 'client_max_body_size' : " + arg;
+                            error_line = line_nbr;
+                            return false;
+                        }
+                        size_t size = translate_client_max_body_size(arg);
+                        location_conf.set_client_max_body_size(size);
                     } else if (location_instruction_list.at(i).at(0) == "index") {
                         std::vector<std::string> indexes(location_instruction_list.at(i).begin() + 1,
                                                          location_instruction_list.at(i).end());
@@ -373,7 +418,7 @@ void config_parser::propagate() {
         if (server_conf.get_error_log().empty()) {
             server_conf.set_error_log(http_conf.get_error_log());
         }
-        if (server_conf.get_client_max_body_size().empty()) {
+        if (server_conf.get_client_max_body_size() == 0) {
             server_conf.set_client_max_body_size(http_conf.get_client_max_body_size());
         }
         if (server_conf.get_indexes().empty()) {
@@ -388,7 +433,7 @@ void config_parser::propagate() {
             if (location_conf.get_error_page().empty()) {
                 location_conf.set_error_page(server_conf.get_error_page());
             }
-            if (location_conf.get_client_max_body_size().empty()) {
+            if (location_conf.get_client_max_body_size() == 0) {
                 location_conf.set_client_max_body_size(server_conf.get_client_max_body_size());
             }
             if (location_conf.get_indexes().empty()) {

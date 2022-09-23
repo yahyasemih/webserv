@@ -5,6 +5,7 @@
 #ifndef WEBSERV_CONFIG_PARSER_HPP
 #define WEBSERV_CONFIG_PARSER_HPP
 
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <map>

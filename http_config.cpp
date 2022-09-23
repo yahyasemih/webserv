@@ -5,7 +5,7 @@
 #include "http_config.hpp"
 
 http_config::http_config() : root("."), error_page("error.html"), access_log("/dev/stdout"),
-        client_max_body_size("80m") {
+        client_max_body_size(80 * 1024 * 1024) { // 80m
     indexes.push_back("index.html");
 }
 
@@ -49,11 +49,11 @@ void http_config::set_error_log(const std::string &error_log) {
     this->error_log = error_log;
 }
 
-const std::string &http_config::get_client_max_body_size() const {
+size_t http_config::get_client_max_body_size() const {
     return client_max_body_size;
 }
 
-void http_config::set_client_max_body_size(const std::string &client_max_body_size) {
+void http_config::set_client_max_body_size(size_t client_max_body_size) {
     this->client_max_body_size = client_max_body_size;
 }
 

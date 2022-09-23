@@ -6,6 +6,18 @@
 
 extern char **environ;
 
+const std::string server::ENTITY_TOO_LARGE_ERROR_PAGE =
+        "<html>\r\n"
+            "\t<head>\r\n"
+                "\t\t<title>413 Request Entity Too Large</title>\r\n"
+            "\t</head>\r\n"
+            "\t<body>\r\n"
+                "\t\t<center><h1>413 Request Entity Too Large</h1></center>\r\n"
+                "\t\t<hr>\r\n"
+                "\t\t<center>yez-zain-server/1.0.0 (UNIX)</center>\r\n"
+            "\t</body>\r\n"
+        "</html>";
+
 static std::map<std::string, std::string> mime_types() {
     std::map<std::string, std::string> types;
 
@@ -360,24 +372,47 @@ void server::handle_request(pollfd &pf) {
     const server_config &server_conf = get_matching_server(ip, host, port);
     file = get_valid_path(server_conf.get_root(), req_builder.get_path());
     const location_config &location_conf = get_matching_location(req_builder.get_uri(), server_conf);
-    struct stat s = {};
-    stat(file.c_str(), &s);
-    if (s.st_mode & S_IFDIR) {
-        if (*file.rbegin() != '/') {
-            file += "/";
-        }
-        file += server_conf.get_indexes().at(0);
-    }
     std::string response;
-    if (location_conf.is_cgi_route() && get_file_extension(file) == location_conf.get_cgi_extension()) {
-        run_cgi(pf, req_builder, file, location_conf);
+    size_t body_limit = location_conf.get_client_max_body_size();
+    if (body_limit > 0 && body_limit < req_builder.get_body().size()) {
+        res_builder.set_status(413);
+        std::string error_page = location_conf.get_root() + "/" + location_conf.get_error_page();
+        std::cout << "error_page: " << error_page << std::endl;
+        if (!access(error_page.c_str(), F_OK | R_OK)) {
+            std::ifstream f(error_page.c_str());
+            res_builder.append_body(f);
+        } else {
+            res_builder.set_body(ENTITY_TOO_LARGE_ERROR_PAGE);
+        }
     } else {
-        run_static(pf, res, res_builder, file, location_conf, response);
+        struct stat s = {};
+        stat(file.c_str(), &s);
+        if (s.st_mode & S_IFDIR) {
+            if (*file.rbegin() != '/') {
+                file += "/";
+            }
+            file += server_conf.get_indexes().at(0);
+        }
+        if (location_conf.is_cgi_route() && get_file_extension(file) == location_conf.get_cgi_extension()) {
+            run_cgi(req_builder, file, location_conf);
+        } else {
+            run_static(res_builder, file, location_conf);
+        }
+    }
+    response = res_builder.build();
+    while ((res = send(pf.fd, response.c_str(), response.size(), 0)) < static_cast<ssize_t>(response.size())
+           && res >= 0) {
+        response = response.substr(res);
+    }
+    if (res < 0) {
+        std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
+        clients.erase(pf.fd);
+        close(pf.fd);
+        pf.fd = -1;
     }
 }
 
-void server::run_static(pollfd &pf, ssize_t res, response_builder &res_builder, const std::string &file,
-                        const location_config &location_conf, std::string &response) {
+void server::run_static(response_builder &res_builder, const std::string &file, const location_config &location_conf) {
     std::ifstream f(file.c_str());
     if (f.is_open()) {
         res_builder.set_status(200);
@@ -392,17 +427,6 @@ void server::run_static(pollfd &pf, ssize_t res, response_builder &res_builder, 
     res_builder.set_header("Server", "yez-zain-server/1.0.0 (UNIX)")
             .set_header("Content-Type", get_mime_type(file))
             .set_header("Connection", "keep-alive");
-    response = res_builder.build();
-    while ((res = send(pf.fd, response.c_str(), response.size(), 0)) < static_cast<ssize_t>(response.size())
-           && res >= 0) {
-        response = response.substr(res);
-    }
-    if (res < 0) {
-        std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
-        clients.erase(pf.fd);
-        close(pf.fd);
-        pf.fd = -1;
-    }
 }
 
 static int update_header_key(char c) {
@@ -412,8 +436,7 @@ static int update_header_key(char c) {
     return toupper(c);
 }
 
-void server::run_cgi(const pollfd &pf, request_builder &req_builder, const std::string &file,
-                     const location_config &location_conf) {
+void server::run_cgi(request_builder &req_builder, const std::string &file, const location_config &location_conf) {
     int pipe_fd[2];
     int pipe_fd2[2];
     pipe(pipe_fd);
@@ -453,6 +476,7 @@ void server::run_cgi(const pollfd &pf, request_builder &req_builder, const std::
         close(pipe_fd2[0]);
         const char * args[3] = {location_conf.get_cgi_path().c_str(), file.c_str(), NULL};
         execve(args[0], const_cast<char **>(args), environ);
+        exit(1);
     } else {
         // TODO: refactor and properly set error code and body in case of error in CGI
         std::stringstream strm;
@@ -486,7 +510,6 @@ void server::run_cgi(const pollfd &pf, request_builder &req_builder, const std::
         }
         final_stream << "Content-length: " << str.size() - pos << "\r\n\r\n";
         final_stream << (str.c_str() + pos);
-        write(pf.fd, final_stream.str().c_str(), final_stream.str().size());
     }
 }
 
