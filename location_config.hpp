@@ -18,6 +18,10 @@ public:
     void set_root(const std::string &root);
     const std::string &get_route() const;
     void set_route(const std::string &route);
+    const std::string &get_cgi_path() const;
+    void set_cgi_path(const std::string &cgi_path);
+    const std::string &get_cgi_extension() const;
+    void set_cgi_extension(const std::string &cgi_extension);
     const std::string &get_client_max_body_size() const;
     void set_client_max_body_size(const std::string &client_max_body_size);
     const std::set<std::string> &get_accepted_methods() const;
@@ -31,9 +35,13 @@ public:
     bool is_list_directory() const;
     void set_list_directory(bool list_directory);
 
+    bool is_cgi_route() const;
+
 private:
     std::string root;
     std::string route;
+    std::string cgi_path;
+    std::string cgi_extension;
     std::string error_page;
     std::string client_max_body_size;
     std::set<std::string> accepted_methods;

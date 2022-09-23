@@ -14,6 +14,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -42,8 +44,15 @@ private:
     void handle_request(pollfd &pf);
     void clean_fds();
     const server_config &get_matching_server(const std::string &ip, const std::string &host, in_port_t port);
-
+    void run_static(pollfd &pf, ssize_t res, response_builder &res_builder, const std::string &file,
+                    const location_config &location_conf, std::string &response);
+    static void run_cgi(const pollfd &pf, request_builder &req_builder, const std::string &file,
+                        const location_config &location_conf);
+    static const location_config &get_matching_location(const std::string &path, const server_config & server_conf);
     static std::string get_mime_type(const std::string &file);
+    static std::string get_file_extension(const std::string &file);
+    static std::string get_file_basename(const std::string &file);
+    static std::string get_valid_path(const std::string &root, std::string path);
 };
 
 #endif //WEBSERV_SERVER_HPP

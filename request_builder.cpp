@@ -13,6 +13,15 @@ request_builder &request_builder::set_method(const std::string &method) {
     return *this;
 }
 
+const std::string &request_builder::get_uri() const {
+    return uri;
+}
+
+request_builder &request_builder::set_uri(const std::string &uri) {
+    this->uri = uri;
+    return *this;
+}
+
 const std::string &request_builder::get_path() const {
     return path;
 }
@@ -53,6 +62,10 @@ const std::string &request_builder::get_header(const std::string &key) const {
     return headers.at(key);
 }
 
+const std::map<std::string, std::string> &request_builder::get_headers() {
+    return headers;
+}
+
 std::string &request_builder::get_header(const std::string &key) {
     return headers[key];
 }
@@ -60,4 +73,8 @@ std::string &request_builder::get_header(const std::string &key) {
 request_builder &request_builder::set_header(const std::string &key, const std::string &value) {
     this->headers.insert(std::make_pair(key, value));
     return *this;
+}
+
+void request_builder::reset() {
+    *this = request_builder();
 }
