@@ -34,6 +34,7 @@ public:
     void stop();
 private:
     static const std::string ENTITY_TOO_LARGE_ERROR_PAGE; // TODO: make it a map status -> default error page
+    static const std::string FORBIDDEN_ERROR_PAGE;
     static const std::map<std::string, std::string> mime_type_map;
     config conf;
     std::vector<int> socket_fds;
@@ -45,9 +46,12 @@ private:
     void handle_request(pollfd &pf);
     void clean_fds();
     const server_config &get_matching_server(const std::string &ip, const std::string &host, in_port_t port);
-    static void run_static(response_builder &res_builder, const std::string &file, const location_config &location_conf);
-    static void run_cgi(request_builder &req_builder, const std::string &file, const location_config &location_conf);
     static const location_config &get_matching_location(const std::string &path, const server_config & server_conf);
+    static void process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
+                                const location_config &location_conf, std::string &response);
+    static void run_static(response_builder &res_builder, const std::string &file, const location_config &location_conf);
+    static void run_cgi(request_builder &req_builder, const std::string &file, const location_config &location_conf,
+                        std::string &response);
     static std::string get_mime_type(const std::string &file);
     static std::string get_file_extension(const std::string &file);
     static std::string get_file_basename(const std::string &file);
