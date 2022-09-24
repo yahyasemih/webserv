@@ -260,21 +260,13 @@ void server::handle_request(pollfd &pf) {
     size_t body_limit = location_conf.get_client_max_body_size();
     const std::set<std::string> &accepted_methods = location_conf.get_accepted_methods();
     if (accepted_methods.find(req_builder.get_method()) == accepted_methods.end()) {
-        res_builder.set_status(405)
-                .set_body(create_error_page(405));
-        response = res_builder.build();
+        on_error(405, location_conf, res_builder);
     } else if (body_limit > 0 && body_limit < req_builder.get_body().size()) {
-        res_builder.set_status(413);
-        std::string error_page = location_conf.get_root() + "/" + location_conf.get_error_page();
-        if (!access(error_page.c_str(), F_OK | R_OK)) {
-            std::ifstream f(error_page.c_str());
-            res_builder.append_body(f);
-        } else {
-            res_builder.set_body(create_error_page(413));
-        }
+        on_error(413, location_conf, res_builder);
     } else {
-        process_request(req_builder, res_builder, file, location_conf, response);
+        process_request(req_builder, res_builder, file, location_conf);
     }
+    response = res_builder.build();
     while ((res = send(pf.fd, response.c_str(), response.size(), 0)) < static_cast<ssize_t>(response.size())
            && res >= 0) {
         response = response.substr(res);
@@ -288,20 +280,16 @@ void server::handle_request(pollfd &pf) {
 }
 
 void server::process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
-                             const location_config &location_conf, std::string &response) {
+         const location_config &location_conf) {
     struct stat s = {};
     int ret = stat(file.c_str(), &s);
 
     if (ret != 0) {
-        res_builder.set_status(404)
-                .set_body(create_error_page(404));
-        response = res_builder.build();
+        on_error(404, location_conf, res_builder);
         return;
     }
     if (access(file.c_str(), R_OK)) {
-        res_builder.set_status(403)
-                .set_body(create_error_page(403));
-        response = res_builder.build();
+        on_error(403, location_conf, res_builder);
         return;
     }
     if (s.st_mode & S_IFDIR) {
@@ -321,12 +309,9 @@ void server::process_request(request_builder &req_builder, response_builder &res
                 // TODO: handle index
                 res_builder.set_status(200)
                         .set_body("// TODO: handle index");
-                response = res_builder.build();
                 return;
             } else {
-                res_builder.set_status(403)
-                        .set_body(create_error_page(403));
-                response = res_builder.build();
+                on_error(403, location_conf, res_builder);
                 return;
             }
         } else {
@@ -334,28 +319,27 @@ void server::process_request(request_builder &req_builder, response_builder &res
         }
     }
     if (location_conf.is_cgi_route() && get_file_extension(file) == location_conf.get_cgi_extension()) {
-        run_cgi(req_builder, file, location_conf, response);
+        run_cgi(req_builder, res_builder, file, location_conf);
     } else {
-        run_static(res_builder, file, location_conf);
-        response = res_builder.build();
+        run_static(req_builder, res_builder, file, location_conf);
     }
 }
 
-void server::run_static(response_builder &res_builder, const std::string &file, const location_config &location_conf) {
+void server::run_static(request_builder &, response_builder &res_builder, const std::string &file,
+        const location_config &location_conf) {
+    if (access(file.c_str(), F_OK)) {
+        on_error(404, location_conf, res_builder);
+        return;
+    }
+    if (access(file.c_str(), R_OK)) {
+        on_error(403, location_conf, res_builder);
+        return;
+    }
     std::ifstream f(file.c_str());
-    if (f.is_open()) {
-        res_builder.set_status(200);
-    } else {
-        std::ifstream error_file(location_conf.get_error_page().c_str());
-        res_builder.set_status(404)
-                .append_body(error_file);
-    }
-    if (f.is_open()) {
-        res_builder.append_body(f);
-    }
-    res_builder.set_header("Server", constants::SERVER_NAME)
+    res_builder.set_status(200)
+            .set_header("Server", constants::SERVER_NAME)
             .set_header("Content-Type", get_mime_type(file))
-            .set_header("Connection", "keep-alive");
+            .append_body(f);
 }
 
 static int update_header_key(char c) {
@@ -365,8 +349,8 @@ static int update_header_key(char c) {
     return toupper(c);
 }
 
-void server::run_cgi(request_builder &req_builder, const std::string &file, const location_config &location_conf,
-                     std::string &response) {
+void server::run_cgi(request_builder &req_builder, response_builder &res_builder, const std::string &file,
+        const location_config &location_conf) {
     int pipe_fd[2];
     int pipe_fd2[2];
     pipe(pipe_fd);
@@ -404,6 +388,7 @@ void server::run_cgi(request_builder &req_builder, const std::string &file, cons
         close(pipe_fd2[1]);
         dup2(pipe_fd2[0], 0);
         close(pipe_fd2[0]);
+        close(2);
         const char * args[3] = {location_conf.get_cgi_path().c_str(), file.c_str(), NULL};
         execve(args[0], const_cast<char **>(args), environ);
         exit(1);
@@ -423,24 +408,28 @@ void server::run_cgi(request_builder &req_builder, const std::string &file, cons
         }
         int status;
         waitpid(pid, &status, 0);
-        std::stringstream final_stream;
-        if (status == 0) {
-            final_stream << "HTTP/1.1 200 OK\r\n";
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            res_builder.set_status(200);
         } else {
-            final_stream << "HTTP/1.1 500 Internal Server Error\r\n";
+            res_builder.set_status(500);
         }
         std::string line;
         while (std::getline(strm, line) && !line.empty() && line != "\r") {
-            final_stream << line << "\n";
+            line.erase(line.size() - 1);
+            size_t idx = line.find(':');
+            if (idx == std::string::npos) {
+                continue; // invalid header
+            }
+            std::string key = line.substr(0, idx);
+            std::string value = line.substr(idx + 2);
+            res_builder.set_header(key, value);
         }
         const std::string &str = strm.str();
         size_t pos = strm.tellg();
         if (pos > 0) {
             --pos;
         }
-        final_stream << "Content-length: " << str.size() - pos << "\r\n\r\n";
-        final_stream << (str.c_str() + pos);
-        response = final_stream.str();
+        res_builder.set_body(str.c_str() + pos);
     }
 }
 
@@ -474,4 +463,15 @@ std::string server::create_error_page(int status) {
                     "\t\t<center>" + constants::SERVER_NAME + "</center>\r\n"
                 "\t</body>\r\n"
            "</html>";
+}
+
+void server::on_error(int status, const location_config &location_conf, response_builder &res_builder) {
+    if (access(location_conf.get_error_page().c_str(), F_OK | R_OK)) {
+        res_builder.set_status(status)
+                .set_body(create_error_page(status));
+        return;
+    }
+    std::ifstream error_file(location_conf.get_error_page().c_str());
+    res_builder.set_status(status)
+            .append_body(error_file);
 }
