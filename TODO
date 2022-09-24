@@ -5,3 +5,4 @@ TODO: Close/keep connection based on 'Connection' header value
 TODO: Support second CGI (other that PHP)
 TODO: Handle binary body correctly (not with std::stringstream)
 TODO: handle routes correctly: considering accepted methods when choosing; root=/dir route=/res : GET /res/a => /dir/a
+TODO: Handle correctly POST (if necessary) and DELETE on static resources
