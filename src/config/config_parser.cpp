@@ -46,6 +46,22 @@ static size_t translate_client_max_body_size(const std::string &client_max_body_
     return size * multiplier[*client_max_body_size_str.rbegin()];
 }
 
+std::string config_parser::get_absolute_path(const std::string &path) const {
+    // TODO: Optimize code and usage of this one
+    if (path[0] == '/') {
+        return path;
+    }
+    std::string parent_dir;
+    if (config_file[0] == '/') {
+        parent_dir = config_file.substr(0, config_file.find_last_of('/')) + "/";
+    } else {
+        parent_dir = getcwd(NULL, 0);
+        parent_dir += "/" + config_file;
+        parent_dir.erase(parent_dir.find_last_of('/'));
+    }
+    return parent_dir + "/" + path;
+}
+
 bool config_parser::parse_config() {
     std::ifstream file(config_file.c_str());
     if (!file.is_open()) {
@@ -399,11 +415,16 @@ bool config_parser::parse_config() {
 
 void config_parser::propagate() {
     // Propagate from main scope to http scope
+    conf.set_error_log(get_absolute_path(conf.get_error_log()));
     if (conf.get_http_conf().get_error_log().empty()) {
         conf.get_http_conf().set_error_log(conf.get_error_log());
     }
     // Propagate from http scope to server scope
     http_config &http_conf = conf.get_http_conf();
+    http_conf.set_error_log(get_absolute_path(http_conf.get_error_log()));
+    http_conf.set_access_log(get_absolute_path(http_conf.get_access_log()));
+    http_conf.set_error_page(get_absolute_path(http_conf.get_error_page()));
+    http_conf.set_root(get_absolute_path(http_conf.get_root()));
     for (size_t i = 0; i < http_conf.get_server_configs().size(); ++i) {
         server_config &server_conf = http_conf.get_server_configs().at(i);
         if (server_conf.get_root().empty()) {
@@ -424,6 +445,10 @@ void config_parser::propagate() {
         if (server_conf.get_indexes().empty()) {
             server_conf.set_indexes(http_conf.get_indexes());
         }
+        server_conf.set_error_log(get_absolute_path(server_conf.get_error_log()));
+        server_conf.set_access_log(get_absolute_path(server_conf.get_access_log()));
+        server_conf.set_error_page(get_absolute_path(server_conf.get_error_page()));
+        server_conf.set_root(get_absolute_path(server_conf.get_root()));
         // Propagate from server scope to location scope
         for (size_t j = 0; j < server_conf.get_location_configs().size(); ++j) {
             location_config &location_conf = server_conf.get_location_configs().at(j);
@@ -439,6 +464,10 @@ void config_parser::propagate() {
             if (location_conf.get_indexes().empty()) {
                 location_conf.set_indexes(server_conf.get_indexes());
             }
+            location_conf.set_error_page(get_absolute_path(location_conf.get_error_page()));
+            location_conf.set_root(get_absolute_path(location_conf.get_root()));
+            location_conf.set_cgi_path(get_absolute_path(location_conf.get_cgi_path()));
+            location_conf.set_upload_dir(get_absolute_path(location_conf.get_upload_dir()));
         }
     }
 }
