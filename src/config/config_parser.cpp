@@ -17,7 +17,7 @@ static std::set<std::string> get_valid_scopes() {
 
 const std::set<std::string> config_parser::valid_scopes = get_valid_scopes();
 
-config_parser::config_parser(const std::string &config_file) : config_file(config_file),
+config_parser::config_parser(const std::string &config_file) : config_file(config_file), error_message(),
         error_line(std::numeric_limits<size_t>::max()) {
 }
 

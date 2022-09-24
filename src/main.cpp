@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     if (argc == 1) {
         path = "default.conf";
     } else {
-        path = argv[0];
+        path = argv[1];
     }
     try {
         server s(path);

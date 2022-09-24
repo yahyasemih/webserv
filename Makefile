@@ -1,16 +1,22 @@
 NAME = webserv
 CXX = c++
 CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -g
-SRCS = main.cpp \
-	server.cpp \
-	config.cpp \
-	http_config.cpp \
-	server_config.cpp \
-	location_config.cpp \
-	response_builder.cpp \
-	request_builder.cpp \
-	config_parser.cpp \
-	client.cpp
+SRCS = src/main.cpp \
+	src/client/client.cpp \
+	src/config/config_parser.cpp \
+	src/config/config.cpp \
+	src/config/http_config.cpp \
+	src/config/location_config.cpp \
+	src/config/server_config.cpp \
+	src/request/request_builder.cpp \
+	src/response/response_builder.cpp \
+	src/server/server.cpp
+
+INC = -Isrc/client \
+	-Isrc/config \
+	-Isrc/request \
+	-Isrc/response \
+	-Isrc/server
 
 DEPS = $(patsubst %.cpp,%.d,$(SRCS))
 OBJECTS = $(patsubst %.cpp,%.o,$(SRCS))
@@ -48,5 +54,5 @@ re: fclean all
 %.cpp:
 
 %.o: %.cpp Makefile
-	@$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+	@$(CXX) $(CXXFLAGS) $(INC) -MMD -MP -c $< -o $@
 	@echo "$(RED)Compiling $< ...$(NC)"
