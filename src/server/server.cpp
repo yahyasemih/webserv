@@ -290,7 +290,20 @@ void server::handle_request(pollfd &pf) {
 void server::process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
                              const location_config &location_conf, std::string &response) {
     struct stat s = {};
-    stat(file.c_str(), &s);
+    int ret = stat(file.c_str(), &s);
+
+    if (ret != 0) {
+        res_builder.set_status(404)
+                .set_body(create_error_page(404));
+        response = res_builder.build();
+        return;
+    }
+    if (access(file.c_str(), R_OK)) {
+        res_builder.set_status(403)
+                .set_body(create_error_page(403));
+        response = res_builder.build();
+        return;
+    }
     if (s.st_mode & S_IFDIR) {
         if (*file.rbegin() != '/') {
             file += "/";
