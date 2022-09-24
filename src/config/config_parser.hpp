@@ -5,6 +5,8 @@
 #ifndef WEBSERV_CONFIG_PARSER_HPP
 #define WEBSERV_CONFIG_PARSER_HPP
 
+#include <unistd.h>
+
 #include <cstdlib>
 #include <fstream>
 #include <limits>
@@ -32,6 +34,7 @@ public:
 private:
     bool parse_config();
     void propagate();
+    std::string get_absolute_path(const std::string &path) const;
 
     config conf;
     scope_map_t scope_to_instructions;
