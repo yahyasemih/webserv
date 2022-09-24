@@ -6,145 +6,6 @@
 
 extern char **environ;
 
-const std::string server::ENTITY_TOO_LARGE_ERROR_PAGE =
-        "<html>\r\n"
-            "\t<head>\r\n"
-                "\t\t<title>413 Request Entity Too Large</title>\r\n"
-            "\t</head>\r\n"
-            "\t<body>\r\n"
-                "\t\t<center><h1>413 Request Entity Too Large</h1></center>\r\n"
-                "\t\t<hr>\r\n"
-                "\t\t<center>yez-zain-server/1.0.0 (UNIX)</center>\r\n"
-            "\t</body>\r\n"
-        "</html>";
-
-const std::string server::FORBIDDEN_ERROR_PAGE =
-        "<html>\r\n"
-            "\t<head>\r\n"
-                "\t\t<title>403 Forbidden</title>\r\n"
-            "\t</head>\r\n"
-            "\t<body>\r\n"
-                "\t\t<center><h1>403 Forbidden</h1></center>\r\n"
-                "\t\t<hr>\r\n"
-                "\t\t<center>yez-zain-server/1.0.0 (UNIX)</center>\r\n"
-            "\t</body>\r\n"
-        "</html>";
-
-const std::string server::METHOD_NOT_ALLOWED_ERROR_PAGE =
-        "<html>\r\n"
-            "\t<head>\r\n"
-                "\t\t<title>405 Method Not Allowed</title>\r\n"
-            "\t</head>\r\n"
-            "\t<body>\r\n"
-                "\t\t<center><h1>405 Method Not Allowed</h1></center>\r\n"
-                "\t\t<hr>\r\n"
-                "\t\t<center>yez-zain-server/1.0.0 (UNIX)</center>\r\n"
-            "\t</body>\r\n"
-        "</html>";
-
-static std::map<std::string, std::string> mime_types() {
-    std::map<std::string, std::string> types;
-
-    types.insert(std::make_pair(".aac", "audio/aac"));
-    types.insert(std::make_pair(".abw", "application/x-abiword"));
-    types.insert(std::make_pair(".avif", "image/avif"));
-    types.insert(std::make_pair(".avi", "video/x-msvideo"));
-    types.insert(std::make_pair(".azw", "application/vnd.amazon.ebook"));
-
-    types.insert(std::make_pair(".bin", "application/octet-stream"));
-    types.insert(std::make_pair(".bmp", "image/bmp"));
-    types.insert(std::make_pair(".bz", "application/x-bzip"));
-    types.insert(std::make_pair(".bz2", "application/x-bzip2"));
-
-    types.insert(std::make_pair(".cda", "application/x-cdf"));
-    types.insert(std::make_pair(".csh", "application/x-csh"));
-    types.insert(std::make_pair(".css", "text/css"));
-    types.insert(std::make_pair(".csv", "text/csv"));
-
-    types.insert(std::make_pair(".doc", "application/msword"));
-    types.insert(std::make_pair(".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
-
-    types.insert(std::make_pair(".eot", "application/vnd.ms-fontobject"));
-    types.insert(std::make_pair(".epub", "application/epub+zip"));
-
-    types.insert(std::make_pair(".gif", "image/gif"));
-    types.insert(std::make_pair(".gz", "application/gzip"));
-
-    types.insert(std::make_pair(".htm", "text/html"));
-    types.insert(std::make_pair(".html", "text/html"));
-
-    types.insert(std::make_pair(".ico", "image/vnd.microsoft.icon"));
-    types.insert(std::make_pair(".ics", "text/calendar"));
-
-    types.insert(std::make_pair(".jar", "application/java-archive"));
-    types.insert(std::make_pair(".jpeg", "image/jpeg"));
-    types.insert(std::make_pair(".jpg", "image/jpeg"));
-    types.insert(std::make_pair(".js", "text/javascript"));
-    types.insert(std::make_pair(".json", "application/json"));
-    types.insert(std::make_pair(".jsonld", "application/ld+json"));
-
-    types.insert(std::make_pair(".mid", "audio/midi"));
-    types.insert(std::make_pair(".midi", "audio/x-midi"));
-    types.insert(std::make_pair(".mjs", "text/javascript"));
-    types.insert(std::make_pair(".mp3", "audio/mpeg"));
-    types.insert(std::make_pair(".mp4", "video/mp4"));
-    types.insert(std::make_pair(".mpeg", "video/mpeg"));
-    types.insert(std::make_pair(".mpkg", "application/vnd.apple.installer+xml"));
-
-    types.insert(std::make_pair(".odp", "application/vnd.oasis.opendocument.presentation"));
-    types.insert(std::make_pair(".ods", "application/application/vnd.oasis.opendocument.spreadsheet"));
-    types.insert(std::make_pair(".odt", "application/vnd.oasis.opendocument.text"));
-    types.insert(std::make_pair(".oga", "audio/ogg"));
-    types.insert(std::make_pair(".ogv", "video/ogg"));
-    types.insert(std::make_pair(".ogx", "application/ogg"));
-    types.insert(std::make_pair(".opus", "audio/opus"));
-    types.insert(std::make_pair(".otf", "font/otf"));
-
-    types.insert(std::make_pair(".png", "image/png"));
-    types.insert(std::make_pair(".pdf", "application/pdf"));
-    types.insert(std::make_pair(".php", "application/x-httpd-php"));
-    types.insert(std::make_pair(".ppt", "application/vnd.ms-powerpoint"));
-    types.insert(std::make_pair(".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"));
-
-    types.insert(std::make_pair(".rar", "application/vnd.rar"));
-    types.insert(std::make_pair(".rtf", "application/rtf"));
-
-    types.insert(std::make_pair(".sh", "application/x-sh"));
-    types.insert(std::make_pair(".svg", "image/svg+xml"));
-
-    types.insert(std::make_pair(".tar", "application/x-tar"));
-    types.insert(std::make_pair(".tif", "image/tiff"));
-    types.insert(std::make_pair(".tiff", "image/tiff"));
-    types.insert(std::make_pair(".ts", "video/mp2t"));
-    types.insert(std::make_pair(".ttf", "font/ttf"));
-    types.insert(std::make_pair(".txt", "text/plain"));
-
-    types.insert(std::make_pair(".vsd", "application/vnd.visio"));
-    types.insert(std::make_pair(".wav", "audio/wav"));
-    types.insert(std::make_pair(".weba", "audio/webm"));
-    types.insert(std::make_pair(".webm", "audio/webm"));
-    types.insert(std::make_pair(".webp", "audio/webp"));
-    types.insert(std::make_pair(".woff", "font/woff"));
-    types.insert(std::make_pair(".woff2", "font/woff2"));
-
-    types.insert(std::make_pair(".xhtml", "application/xhtml+xml"));
-    types.insert(std::make_pair(".xls", "application/vnd.ms-excel"));
-    types.insert(std::make_pair(".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-    types.insert(std::make_pair(".xml", "application/xml"));
-    types.insert(std::make_pair(".xul", "application/vnd.mozilla.xul+xml"));
-
-    types.insert(std::make_pair(".zip", "application/zip"));
-    types.insert(std::make_pair(".3gp", "video/3gpp"));
-    types.insert(std::make_pair(".3g2", "video/3gpp2"));
-
-    types.insert(std::make_pair("7z", "application/x-7z-compressed"));
-    types.insert(std::make_pair("", "text/html"));
-
-    return types;
-}
-
-const std::map<std::string, std::string> server::mime_type_map = mime_types();
-
 server::server(const std::string &config_file) : is_running() {
     config_parser parser(config_file);
     parser.compile();
@@ -303,8 +164,7 @@ const location_config &server::get_matching_location(const std::string &path, co
     return server_conf.get_location_configs().at(idx);
 }
 
-static bool ends_with(const std::string &value, const std::string &ending)
-{
+static bool ends_with(const std::string &value, const std::string &ending) {
     if (ending.size() > value.size()) {
         return false;
     }
@@ -401,7 +261,7 @@ void server::handle_request(pollfd &pf) {
     const std::set<std::string> &accepted_methods = location_conf.get_accepted_methods();
     if (accepted_methods.find(req_builder.get_method()) == accepted_methods.end()) {
         res_builder.set_status(405)
-                .set_body(METHOD_NOT_ALLOWED_ERROR_PAGE);
+                .set_body(create_error_page(405));
         response = res_builder.build();
     } else if (body_limit > 0 && body_limit < req_builder.get_body().size()) {
         res_builder.set_status(413);
@@ -410,7 +270,7 @@ void server::handle_request(pollfd &pf) {
             std::ifstream f(error_page.c_str());
             res_builder.append_body(f);
         } else {
-            res_builder.set_body(ENTITY_TOO_LARGE_ERROR_PAGE);
+            res_builder.set_body(create_error_page(413));
         }
     } else {
         process_request(req_builder, res_builder, file, location_conf, response);
@@ -452,7 +312,7 @@ void server::process_request(request_builder &req_builder, response_builder &res
                 return;
             } else {
                 res_builder.set_status(403)
-                        .set_body(FORBIDDEN_ERROR_PAGE);
+                        .set_body(create_error_page(403));
                 response = res_builder.build();
                 return;
             }
@@ -480,7 +340,7 @@ void server::run_static(response_builder &res_builder, const std::string &file, 
     if (f.is_open()) {
         res_builder.append_body(f);
     }
-    res_builder.set_header("Server", "yez-zain-server/1.0.0 (UNIX)")
+    res_builder.set_header("Server", constants::SERVER_NAME)
             .set_header("Content-Type", get_mime_type(file))
             .set_header("Connection", "keep-alive");
 }
@@ -583,6 +443,22 @@ void server::clean_fds() {
 }
 
 std::string server::get_mime_type(const std::string &file) {
-    std::map<std::string, std::string>::const_iterator it = mime_type_map.find(get_file_extension(file));
-    return it == mime_type_map.end() ? mime_type_map.at("") : it->second;
+    constants::mime_types_map::const_iterator it = constants::MIME_TYPES.find(get_file_extension(file));
+    return it == constants::MIME_TYPES.end() ? constants::MIME_TYPES.at("") : it->second;
+}
+
+std::string server::create_error_page(int status) {
+    std::stringstream str_stream;
+    str_stream << status << " " << constants::STATUS_STR.at(status);
+
+    return "<html>\r\n"
+                "\t<head>\r\n"
+                    "\t\t<title>" + str_stream.str() + "</title>\r\n"
+                "\t</head>\r\n"
+                "\t<body>\r\n"
+                    "\t\t<center><h1>" + str_stream.str() + "</h1></center>\r\n"
+                    "\t\t<hr>\r\n"
+                    "\t\t<center>" + constants::SERVER_NAME + "</center>\r\n"
+                "\t</body>\r\n"
+           "</html>";
 }

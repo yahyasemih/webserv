@@ -14,7 +14,7 @@ client::client(const client &o) : buffer(), fd(o.fd), local_addr(o.local_addr), 
 }
 
 ssize_t client::receive() {
-    ssize_t res = recv(fd, buffer, BUFFER_SIZE, 0);
+    ssize_t res = recv(fd, buffer, constants::BUFFER_SIZE, 0);
     if (res <= 0) {
         return res;
     }

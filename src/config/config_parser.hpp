@@ -17,6 +17,7 @@
 #include <string>
 
 #include "config.hpp"
+#include "constants.hpp"
 
 class config_parser {
 public:
@@ -41,7 +42,6 @@ private:
     std::string config_file;
     std::string error_message;
     size_t error_line;
-    static const std::set<std::string> valid_scopes;
 };
 
 

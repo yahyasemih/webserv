@@ -14,6 +14,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "constants.hpp"
 #include "request_builder.hpp"
 
 class client {
@@ -29,9 +30,7 @@ public:
     in_addr get_remote_addr() const;
     in_port_t get_remote_port() const;
 private:
-    static const int BUFFER_SIZE = 1024;
-
-    char buffer[BUFFER_SIZE + 1];
+    char buffer[constants::BUFFER_SIZE + 1];
     int fd;
     sockaddr_in local_addr;
     sockaddr_in remote_addr;

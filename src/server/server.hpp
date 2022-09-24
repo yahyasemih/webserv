@@ -23,6 +23,7 @@
 #include "client.hpp"
 #include "config.hpp"
 #include "config_parser.hpp"
+#include "constants.hpp"
 #include "response_builder.hpp"
 
 class server {
@@ -33,10 +34,6 @@ public:
     void start();
     void stop();
 private:
-    static const std::string ENTITY_TOO_LARGE_ERROR_PAGE; // TODO: make it a map status -> default error page
-    static const std::string FORBIDDEN_ERROR_PAGE;
-    static const std::string METHOD_NOT_ALLOWED_ERROR_PAGE;
-    static const std::map<std::string, std::string> mime_type_map;
     config conf;
     std::vector<int> socket_fds;
     std::map<int, client> clients;
@@ -57,6 +54,7 @@ private:
     static std::string get_file_extension(const std::string &file);
     static std::string get_file_basename(const std::string &file);
     static std::string get_valid_path(const std::string &root, std::string path);
+    static std::string create_error_page(int status);
 };
 
 #endif //WEBSERV_SERVER_HPP

@@ -8,11 +8,13 @@ SRCS = src/main.cpp \
 	src/config/http_config.cpp \
 	src/config/location_config.cpp \
 	src/config/server_config.cpp \
+	src/constants/constants.cpp \
 	src/request/request_builder.cpp \
 	src/response/response_builder.cpp \
 	src/server/server.cpp
 
 INC = -Isrc/client \
+	-Isrc/constants \
 	-Isrc/config \
 	-Isrc/request \
 	-Isrc/response \

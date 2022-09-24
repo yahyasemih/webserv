@@ -4,19 +4,6 @@
 
 #include "config_parser.hpp"
 
-static std::set<std::string> get_valid_scopes() {
-    std::set<std::string> valid_scopes;
-
-    valid_scopes.insert("main");
-    valid_scopes.insert("http");
-    valid_scopes.insert("server");
-    valid_scopes.insert("location");
-
-    return valid_scopes;
-}
-
-const std::set<std::string> config_parser::valid_scopes = get_valid_scopes();
-
 config_parser::config_parser(const std::string &config_file) : config_file(config_file), error_message(),
         error_line(std::numeric_limits<size_t>::max()) {
 }
@@ -110,7 +97,7 @@ bool config_parser::parse_config() {
             std::string new_scope;
             std::stringstream scope_stream(line.erase(line.size() - 1));
             scope_stream >> new_scope;
-            if (valid_scopes.find(new_scope) == valid_scopes.end()) {
+            if (constants::VALID_SCOPES.find(new_scope) == constants::VALID_SCOPES.end()) {
                 error_message = "Invalid scope '" + new_scope + "'";
                 error_line = line_nbr;
                 return false;

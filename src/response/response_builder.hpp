@@ -12,6 +12,8 @@
 #include <sstream>
 #include <string>
 
+#include "constants.hpp"
+
 class response_builder {
 public:
     response_builder();
@@ -23,14 +25,10 @@ public:
     std::string build() const;
 private:
     typedef std::map<std::string, std::string> headers_map;
-    typedef const std::map<in_port_t, std::string> status_map;
     in_port_t status;
     headers_map headers;
     std::string body;
     size_t body_size;
-
-    static status_map status_str;
 };
-
 
 #endif //WEBSERV_RESPONSE_BUILDER_HPP
