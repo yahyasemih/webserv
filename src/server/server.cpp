@@ -476,6 +476,9 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
             }
             std::string key = line.substr(0, idx);
             std::string value = line.substr(idx + 2);
+            if (key == "Status") {
+                res_builder.set_status(std::strtol(value.c_str(), NULL, 10));
+            }
             res_builder.set_header(key, value);
         }
         const std::string &str = strm.str();
