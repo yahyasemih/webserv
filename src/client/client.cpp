@@ -36,6 +36,10 @@ request_builder client::get_request() {
     return res;
 }
 
+std::string &client::get_response() {
+    return response;
+}
+
 in_addr client::get_local_addr() const {
     return local_addr.sin_addr;
 }

@@ -58,6 +58,8 @@ private:
     static std::string create_error_page(int status);
     static void on_error(int status, const location_config &location_conf, response_builder &res_builder);
     static void truncate_body(request_builder &req_builder, response_builder &res_builder, std::ifstream &f);
+
+    void serve_response(pollfd &pf);
 };
 
 #endif //WEBSERV_SERVER_HPP

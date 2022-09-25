@@ -82,7 +82,7 @@ void server::accept_connection(size_t index) {
         fcntl(new_socket, F_SETFL, O_NONBLOCK);
         pollfd pf = {};
         pf.fd = new_socket;
-        pf.events = POLLIN;
+        pf.events = POLLIN | POLLOUT;
         poll_fds.push_back(pf);
         clients.insert(std::make_pair(new_socket, client(new_socket, socket_addr, socket_remote_addr)));
     }
@@ -105,6 +105,8 @@ void server::start() {
                         pf.fd = -1;
                     } else if (pf.revents & POLLIN) {
                         handle_request(pf);
+                    } else if (pf.revents & POLLOUT) {
+                        serve_response(pf);
                     }
                 }
                 clean_fds();
@@ -256,7 +258,7 @@ void server::handle_request(pollfd &pf) {
     const server_config &server_conf = get_matching_server(ip, host, port);
     file = get_valid_path(server_conf.get_root(), req_builder.get_path());
     const location_config &location_conf = get_matching_location(req_builder.get_uri(), server_conf);
-    std::string response;
+    std::string &response = c.get_response();
     size_t body_limit = location_conf.get_client_max_body_size();
     const std::set<std::string> &accepted_methods = location_conf.get_accepted_methods();
     if (accepted_methods.find(req_builder.get_method()) == accepted_methods.end()) {
@@ -267,16 +269,28 @@ void server::handle_request(pollfd &pf) {
         process_request(req_builder, res_builder, file, location_conf);
     }
     response = res_builder.build();
-    while ((res = send(pf.fd, response.c_str(), response.size(), 0)) < static_cast<ssize_t>(response.size())
-           && res >= 0) {
-        response = response.substr(res);
+    pf.events = POLLOUT; // client ready to serve response, listening again to write events
+}
+
+void server::serve_response(pollfd &pf) {
+    if (clients.find(pf.fd) == clients.end()) {
+        return;
     }
+    client &c = clients.at(pf.fd);
+    std::string &response = c.get_response();
+    if (response.empty()) {
+        pf.events = POLLIN; // client has no more response to send, listening to read events only
+        return;
+    }
+    ssize_t res = send(pf.fd, response.c_str(), response.size(), 0);
     if (res < 0) {
         std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
         clients.erase(pf.fd);
         close(pf.fd);
         pf.fd = -1;
+        return;
     }
+    response = response.substr(res);
 }
 
 void server::process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
@@ -350,7 +364,6 @@ void server::truncate_body(request_builder &req_builder, response_builder &res_b
     if (range.find('=') != std::string::npos) {
         range = range.substr(range.find('=') + 1);
     }
-    std::cout << "range: " << range << std::endl;
     f.clear();
     f.seekg(0, std::ios_base::end);
     long long file_size = f.tellg();

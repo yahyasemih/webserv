@@ -16,6 +16,7 @@
 
 #include "constants.hpp"
 #include "request_builder.hpp"
+#include "response_builder.hpp"
 
 class client {
 public:
@@ -25,6 +26,7 @@ public:
     ssize_t receive();
     bool request_not_complete() const;
     request_builder get_request();
+    std::string &get_response();
     in_addr get_local_addr() const;
     in_port_t get_local_port() const;
     in_addr get_remote_addr() const;
@@ -35,6 +37,7 @@ private:
     sockaddr_in local_addr;
     sockaddr_in remote_addr;
     request_builder req_builder;
+    std::string response;
     std::stringstream content;
     bool header_started;
     bool header_completed;
