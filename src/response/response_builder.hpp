@@ -22,6 +22,7 @@ public:
     response_builder &set_body(const std::string &body);
     response_builder &append_body(const std::string &body);
     response_builder &append_body(std::istream &stream);
+    response_builder &truncate_body(size_t begin, size_t end);
     std::string build() const;
 private:
     typedef std::map<std::string, std::string> headers_map;

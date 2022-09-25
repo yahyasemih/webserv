@@ -6,5 +6,4 @@ TODO: Support second CGI (other that PHP)
 TODO: Handle binary body correctly (not with std::stringstream)
 TODO: handle routes correctly: considering accepted methods when choosing; root=/dir route=/res : GET /res/a => /dir/a
 TODO: Handle correctly POST (if necessary) and DELETE on static resources
-TODO: Handle range request
 TODO: make server answer in chunks, after not directly after processing request but after using poll with write

@@ -54,3 +54,11 @@ std::string response_builder::build() const {
     response << body;
     return response.str();
 }
+
+response_builder &response_builder::truncate_body(size_t begin, size_t end) {
+    if (begin < body.size() && end >= begin) {
+        body = body.substr(begin, end - begin + 1);
+        body_size = body.size();
+    }
+    return *this;
+}

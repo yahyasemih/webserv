@@ -325,7 +325,7 @@ void server::process_request(request_builder &req_builder, response_builder &res
     }
 }
 
-void server::run_static(request_builder &, response_builder &res_builder, const std::string &file,
+void server::run_static(request_builder &req_builder, response_builder &res_builder, const std::string &file,
         const location_config &location_conf) {
     if (access(file.c_str(), F_OK)) {
         on_error(404, location_conf, res_builder);
@@ -340,6 +340,47 @@ void server::run_static(request_builder &, response_builder &res_builder, const 
             .set_header("Server", constants::SERVER_NAME)
             .set_header("Content-Type", get_mime_type(file))
             .append_body(f);
+    if (!req_builder.get_header("Range").empty()) {
+        truncate_body(req_builder, res_builder, f);
+    }
+}
+
+void server::truncate_body(request_builder &req_builder, response_builder &res_builder, std::ifstream &f) {
+    std::string range = req_builder.get_header("Range");
+    if (range.find('=') != std::string::npos) {
+        range = range.substr(range.find('=') + 1);
+    }
+    std::cout << "range: " << range << std::endl;
+    f.clear();
+    f.seekg(0, std::ios_base::end);
+    long long file_size = f.tellg();
+    long long first_byte;
+    long long last_byte = file_size - 1;
+    bool first_missing = range[0] == '-';
+    bool last_missing = *range.rbegin() == '-';
+
+    if (!first_missing && !last_missing) {
+        size_t idx = range.find('-');
+        first_byte = strtoll(range.c_str(), NULL, 10);
+        if (idx != std::string::npos) {
+            last_byte = strtoll(range.c_str() + idx + 1, NULL, 10);
+        }
+    } else if (last_missing) {
+        first_byte = strtoll(range.c_str(), NULL, 10);
+    } else {
+        size_t idx = range.find('-');
+        if (idx != std::string::npos) {
+            last_byte = strtoll(range.c_str() + idx + 1, NULL, 10);
+        }
+        first_byte = std::max(file_size - last_byte, 0ll);
+        last_byte = file_size - 1;
+    }
+    std::stringstream range_stream;
+    range_stream << "bytes " << first_byte << "-" << last_byte << "/" << file_size;
+    res_builder.set_status(206)
+            .set_header("Accept-Ranges", "bytes")
+            .set_header("Content-Range", range_stream.str());
+    res_builder.truncate_body(first_byte, last_byte);
 }
 
 static int update_header_key(char c) {
