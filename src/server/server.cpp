@@ -407,10 +407,24 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
         const location_config &location_conf) {
     int pipe_fd[2];
     int pipe_fd2[2];
-    pipe(pipe_fd);
-    pipe(pipe_fd2);
+    if (pipe(pipe_fd) < 0) {
+        res_builder.set_status(502);
+        return;
+    }
+    if (pipe(pipe_fd2) < 0) {
+        close(pipe_fd[0]);
+        close(pipe_fd[1]);
+        res_builder.set_status(502);
+        return;
+    }
     int pid = fork();
-    if (pid == 0) {
+    if (pid < 0) {
+        close(pipe_fd[0]);
+        close(pipe_fd[1]);
+        close(pipe_fd2[0]);
+        close(pipe_fd2[1]);
+        res_builder.set_status(502);
+    } else if (pid == 0) {
         chdir(location_conf.get_root().c_str());
         setenv("GATEWAY_INTERFACE", "CGI/1.1", 1);
         setenv("SERVER_PROTOCOL", "HTTP/1.1", 1);
@@ -443,20 +457,25 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
         dup2(pipe_fd2[0], 0);
         close(pipe_fd2[0]);
         close(2);
-        const char * args[3] = {location_conf.get_cgi_path().c_str(), file.c_str(), NULL};
-        execve(args[0], const_cast<char **>(args), environ);
+        const char *args[3] = {location_conf.get_cgi_path().c_str(), file.c_str(), NULL};
+        int ret = execve(args[0], const_cast<char **>(args), environ);
+        if (ret < 0) {
+            std::string error_res = "Status: 502 Bad Gateway\r\n";
+            error_res += "Content-Length: 0\r\n\r\n";
+            write(1, error_res.c_str(), error_res.size());
+        }
         exit(1);
     } else {
         // TODO: refactor and properly set error code and body in case of error in CGI
         std::stringstream strm;
-        char buffer[1001];
+        char buffer[constants::BUFFER_SIZE + 1];
         close(pipe_fd[1]);
         close(pipe_fd2[0]);
 
         write(pipe_fd2[1], req_builder.get_body().c_str(), req_builder.get_body().size());
         close(pipe_fd2[1]);
         ssize_t r;
-        while ((r = read(pipe_fd[0], buffer, 1000)) != 0) {
+        while ((r = read(pipe_fd[0], buffer, constants::BUFFER_SIZE)) != 0) {
             buffer[r] = '\0';
             strm << buffer;
         }
@@ -483,10 +502,8 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
         }
         const std::string &str = strm.str();
         size_t pos = strm.tellg();
-        if (pos > 0) {
-            --pos;
-        }
         res_builder.set_body(str.c_str() + pos);
+        close(pipe_fd[0]);
     }
 }
 
