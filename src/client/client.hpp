@@ -13,6 +13,7 @@
 #include <cassert>
 #include <iostream>
 #include <sstream>
+#include <vector>
 
 #include "constants.hpp"
 #include "request_builder.hpp"
@@ -39,11 +40,11 @@ private:
     request_builder req_builder;
     std::string response;
     std::stringstream content;
-    bool header_started;
     bool header_completed;
     bool body_completed;
 
-    void process_received_data();
+    void process_request_line();
+    void process_header_lines();
     void reset();
 };
 

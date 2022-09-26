@@ -49,17 +49,13 @@ request_builder &request_builder::set_http_version(const std::string &http_versi
     return *this;
 }
 
-const std::string &request_builder::get_body() const {
+const std::vector<char> &request_builder::get_body() const {
     return body;
 }
 
-request_builder &request_builder::set_body(const std::string &body) {
-    this->body += body;
+request_builder &request_builder::append_body(const char *buffer, size_t size) {
+    body.insert(body.end(), buffer, buffer + size);
     return *this;
-}
-
-const std::string &request_builder::get_header(const std::string &key) const {
-    return headers.at(key);
 }
 
 const std::map<std::string, std::string> &request_builder::get_headers() {
