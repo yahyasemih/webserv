@@ -49,7 +49,7 @@ request_builder &request_builder::set_http_version(const std::string &http_versi
     return *this;
 }
 
-const std::vector<char> &request_builder::get_body() const {
+std::vector<char> &request_builder::get_body() {
     return body;
 }
 
