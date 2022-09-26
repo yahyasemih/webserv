@@ -147,6 +147,7 @@ bool config_parser::parse_config() {
                     error_line = line_nbr;
                     return false;
                 }
+                
                 http_config &http_conf = conf.get_http_conf();
                 const instruction_list_t &http_instruction_list = scope_to_instructions.at("http").at(0);
 

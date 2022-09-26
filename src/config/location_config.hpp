@@ -30,6 +30,7 @@ public:
     void set_upload_dir(const std::string &upload_dir);
     bool is_list_directory() const;
     void set_list_directory(bool list_directory);
+    bool is_cgi_route() const;
 
 private:
     std::string root;

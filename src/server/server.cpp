@@ -3,6 +3,10 @@
 //
 
 #include "server.hpp"
+#include "directory_listing_page_builder.h"
+#include "constants.hpp"
+#include <sys/types.h>
+#include <dirent.h>
 
 extern char **environ;
 
@@ -291,6 +295,65 @@ void server::serve_response(pollfd &pf) {
     response = response.substr(res);
 }
 
+void server::list_directory(std::string &path, response_builder &res_builder, const std::string &root)
+{
+    DIR *directory = opendir(path.c_str());
+    if (directory == NULL) {
+        res_builder.set_status(500);
+        return ;
+    }
+
+    directory_listing_page_builder builder(path, root);
+    struct dirent *dirent_struct;
+    // Add directory path to the head of the page.
+    builder.add_directory_path();
+    // Add parent directory path to [parent directory]
+    builder.add_parent_directory_path();
+
+    while ((dirent_struct = readdir(directory))) {
+        if (strcmp(dirent_struct->d_name, "..") == 0 || strcmp(dirent_struct->d_name, ".") == 0)
+            continue;
+        struct stat file_stat = {};
+        std::string full_path = path + dirent_struct->d_name;
+        std::string size;
+        // if we can't get the required information about the file, we will display its name and leave the other
+        // two columns empty
+        if (stat(full_path.c_str(), &file_stat) == -1) {
+            builder.add_new_table_entry(dirent_struct->d_name, "", "");
+            continue;
+        }
+        // We don't need size for a direcotory, we only display size for files.
+        if (file_stat.st_mode & S_IFDIR)
+            size = "";
+        else
+            size = get_file_readable_size(file_stat.st_size);
+        // Add file information to page.
+        builder.add_new_table_entry(dirent_struct->d_name, size, get_file_last_modified_date(file_stat.st_mtimespec));
+    }
+    res_builder.set_status(200).set_header("Content-Type", constants::MIME_TYPES.at(".html")).set_body(builder.template_content);
+}
+
+std::string server::get_file_last_modified_date(struct timespec &ts) {
+    char buffer[100];
+    strftime(buffer, sizeof buffer, "%D %r", gmtime(&ts.tv_sec));
+    return std::string(buffer);
+}
+
+std::string server::get_file_readable_size(off_t size) {
+    std::string size_string = "";
+    const long KiB = 1024;
+    const long MiB = 1049000;
+    const long GiB = 1074000000;
+    if (size < KiB)
+        return size_string + std::to_string(size) + " B";
+    else if (size >= KiB && size < MiB)
+        return size_string + std::to_string(size / KiB) + " KB";
+    else if (size >= MiB && size < GiB)
+        return size_string + std::to_string(size / MiB) + " MB";
+    else
+        return size_string + std::to_string(size / GiB) + " GB";
+}
+
 void server::process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
         const server_config &server_conf, const location_config &location_conf) {
     struct stat s = {};
@@ -309,6 +372,7 @@ void server::process_request(request_builder &req_builder, response_builder &res
             file += "/";
         }
         size_t i = 0;
+
         while (i < location_conf.get_indexes().size()) {
             std::string index_to_check = file + location_conf.get_indexes().at(i);
             if (!access(index_to_check.c_str(), F_OK | R_OK)) {
@@ -319,8 +383,7 @@ void server::process_request(request_builder &req_builder, response_builder &res
         if (i == location_conf.get_indexes().size()) { // fallback to directory listing
             if (location_conf.is_list_directory()) {
                 // TODO: handle index
-                res_builder.set_status(200)
-                        .set_body("// TODO: handle index");
+                list_directory(file, res_builder, location_conf.get_root());
                 return;
             } else {
                 on_error(403, location_conf, res_builder);

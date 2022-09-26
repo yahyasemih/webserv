@@ -11,14 +11,16 @@ SRCS = src/main.cpp \
 	src/constants/constants.cpp \
 	src/request/request_builder.cpp \
 	src/response/response_builder.cpp \
-	src/server/server.cpp
+	src/server/server.cpp \
+	src/directory_listing_page_builder/directory_listing_page_builder.cpp
 
 INC = -Isrc/client \
 	-Isrc/constants \
 	-Isrc/config \
 	-Isrc/request \
 	-Isrc/response \
-	-Isrc/server
+	-Isrc/server \
+	-Isrc/directory_listing_page_builder
 
 DEPS = $(patsubst %.cpp,%.d,$(SRCS))
 OBJECTS = $(patsubst %.cpp,%.o,$(SRCS))
