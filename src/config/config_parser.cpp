@@ -275,6 +275,20 @@ bool config_parser::parse_config() {
                         std::vector<std::string> indexes(server_instruction_list.at(i).begin() + 1,
                                                          server_instruction_list.at(i).end());
                         server_conf.set_indexes(indexes);
+                    } else if (server_instruction_list.at(i).at(0) == "cgi_path") {
+                        if (server_instruction_list.at(i).size() != 2) {
+                            error_message = "Invalid number of args for 'cgi_path'";
+                            error_line = line_nbr;
+                            return false;
+                        }
+                        server_conf.set_cgi_path(server_instruction_list.at(i).at(1));
+                    } else if (server_instruction_list.at(i).at(0) == "cgi_extension") {
+                        if (server_instruction_list.at(i).size() != 2) {
+                            error_message = "Invalid number of args for 'cgi_extension'";
+                            error_line = line_nbr;
+                            return false;
+                        }
+                        server_conf.set_cgi_extension(server_instruction_list.at(i).at(1));
                     } else {
                         error_message = "Invalid field '" + server_instruction_list.at(i).at(0) + "'";
                         error_line = line_nbr;
@@ -300,20 +314,6 @@ bool config_parser::parse_config() {
                             return false;
                         }
                         location_conf.set_root(location_instruction_list.at(i).at(1));
-                    } else if (location_instruction_list.at(i).at(0) == "cgi_path") {
-                        if (location_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'cgi_path'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        location_conf.set_cgi_path(location_instruction_list.at(i).at(1));
-                    } else if (location_instruction_list.at(i).at(0) == "cgi_extension") {
-                        if (location_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'cgi_extension'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        location_conf.set_cgi_extension(location_instruction_list.at(i).at(1));
                     } else if (location_instruction_list.at(i).at(0) == "error_page") {
                         if (location_instruction_list.at(i).size() != 2) {
                             error_message = "Invalid number of args for 'error_page'";
@@ -436,6 +436,7 @@ void config_parser::propagate() {
         server_conf.set_access_log(get_absolute_path(server_conf.get_access_log()));
         server_conf.set_error_page(get_absolute_path(server_conf.get_error_page()));
         server_conf.set_root(get_absolute_path(server_conf.get_root()));
+        server_conf.set_cgi_path(get_absolute_path(server_conf.get_cgi_path()));
         // Propagate from server scope to location scope
         for (size_t j = 0; j < server_conf.get_location_configs().size(); ++j) {
             location_config &location_conf = server_conf.get_location_configs().at(j);
@@ -453,7 +454,6 @@ void config_parser::propagate() {
             }
             location_conf.set_error_page(get_absolute_path(location_conf.get_error_page()));
             location_conf.set_root(get_absolute_path(location_conf.get_root()));
-            location_conf.set_cgi_path(get_absolute_path(location_conf.get_cgi_path()));
             location_conf.set_upload_dir(get_absolute_path(location_conf.get_upload_dir()));
         }
     }

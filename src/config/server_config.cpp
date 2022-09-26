@@ -90,3 +90,23 @@ const std::vector<std::string> &server_config::get_indexes() const {
 void server_config::set_indexes(const std::vector<std::string> &indexes) {
     this->indexes = indexes;
 }
+
+const std::string &server_config::get_cgi_path() const {
+    return cgi_path;
+}
+
+void server_config::set_cgi_path(const std::string &cgi_path) {
+    this->cgi_path = cgi_path;
+}
+
+const std::string &server_config::get_cgi_extension() const {
+    return cgi_extension;
+}
+
+void server_config::set_cgi_extension(const std::string &cgi_extension) {
+    this->cgi_extension = cgi_extension;
+}
+
+bool server_config::is_cgi_route() const {
+    return !cgi_path.empty() && !cgi_extension.empty();
+}

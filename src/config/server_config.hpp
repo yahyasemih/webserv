@@ -37,6 +37,12 @@ public:
     void set_client_max_body_size(size_t client_max_body_size);
     const std::vector<std::string> &get_indexes() const;
     void set_indexes(const std::vector<std::string> &indexes);
+    const std::string &get_cgi_path() const;
+    void set_cgi_path(const std::string &cgi_path);
+    const std::string &get_cgi_extension() const;
+    void set_cgi_extension(const std::string &cgi_extension);
+
+    bool is_cgi_route() const;
 private:
     std::string host;
     in_port_t port;
@@ -48,6 +54,8 @@ private:
     std::string error_log;
     size_t client_max_body_size;
     std::vector<std::string> indexes;
+    std::string cgi_path;
+    std::string cgi_extension;
 };
 
 #endif //WEBSERV_SERVER_CONFIG_HPP

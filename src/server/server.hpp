@@ -47,11 +47,11 @@ private:
     static const location_config &get_matching_location(const request_builder &req_builder,
             const server_config &server_conf);
     static void process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
-            const location_config &location_conf);
+            const server_config &server_conf, const location_config &location_conf);
     static void run_static(request_builder &req_builder, response_builder &res_builder, const std::string &file,
             const location_config &location_conf);
     static void run_cgi(request_builder &req_builder, response_builder &res_builder, const std::string &file,
-            const location_config &location_conf);
+            const server_config &server_conf, const location_config &location_conf);
     static std::string get_mime_type(const std::string &file);
     static std::string get_file_extension(const std::string &file);
     static std::string get_file_basename(const std::string &file);

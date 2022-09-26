@@ -160,13 +160,9 @@ const location_config &server::get_matching_location(const request_builder &req_
         if (accepted_methods.find(req_builder.get_method()) == accepted_methods.end()) {
             continue;
         }
-        if (location_conf.is_cgi_route() && location_conf.get_cgi_extension() != ext) {
-            continue;
-        }
-        if (location_conf.is_cgi_route()) {
+        if (req_builder.get_uri().find(location_conf.get_route()) == 0) {
             idx = i;
-        } else if (req_builder.get_uri().find(location_conf.get_route()) == 0) {
-            idx = i;
+            break;
         }
     }
     return server_conf.get_location_configs().at(idx);
@@ -272,7 +268,7 @@ void server::handle_request(pollfd &pf) {
     } else if (body_limit > 0 && body_limit < req_builder.get_body().size()) {
         on_error(413, location_conf, res_builder);
     } else {
-        process_request(req_builder, res_builder, file, location_conf);
+        process_request(req_builder, res_builder, file, server_conf, location_conf);
     }
     response = res_builder.build();
     pf.events = POLLOUT; // client ready to serve response, listening again to write events
@@ -300,7 +296,7 @@ void server::serve_response(pollfd &pf) {
 }
 
 void server::process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
-         const location_config &location_conf) {
+        const server_config &server_conf, const location_config &location_conf) {
     struct stat s = {};
     int ret = stat(file.c_str(), &s);
 
@@ -338,8 +334,8 @@ void server::process_request(request_builder &req_builder, response_builder &res
             file += location_conf.get_indexes().at(i);
         }
     }
-    if (location_conf.is_cgi_route() && get_file_extension(file) == location_conf.get_cgi_extension()) {
-        run_cgi(req_builder, res_builder, file, location_conf);
+    if (server_conf.is_cgi_route() && get_file_extension(file) == server_conf.get_cgi_extension()) {
+        run_cgi(req_builder, res_builder, file, server_conf, location_conf);
     } else {
         run_static(req_builder, res_builder, file, location_conf);
     }
@@ -410,7 +406,7 @@ static int update_header_key(char c) {
 }
 
 void server::run_cgi(request_builder &req_builder, response_builder &res_builder, const std::string &file,
-        const location_config &location_conf) {
+        const server_config &server_conf, const location_config &location_conf) {
     int pipe_fd[2];
     int pipe_fd2[2];
     if (pipe(pipe_fd) < 0) {
@@ -461,7 +457,7 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
         dup2(pipe_fd2[0], 0);
         close(pipe_fd2[0]);
         close(2);
-        const char *args[3] = {location_conf.get_cgi_path().c_str(), file.c_str(), NULL};
+        const char *args[3] = {server_conf.get_cgi_path().c_str(), file.c_str(), NULL};
         int ret = execve(args[0], const_cast<char **>(args), environ);
         if (ret < 0) {
             std::string error_res = "Status: 502 Bad Gateway\r\n";
