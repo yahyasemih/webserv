@@ -428,7 +428,7 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
         chdir(location_conf.get_root().c_str());
         setenv("GATEWAY_INTERFACE", "CGI/1.1", 1);
         setenv("SERVER_PROTOCOL", "HTTP/1.1", 1);
-        setenv("PATH_INFO", "", 1);
+        setenv("PATH_INFO", req_builder.get_uri().c_str(), 1);
         setenv("REQUEST_URI", req_builder.get_uri().c_str(), 1);
         setenv("REQUEST_METHOD", req_builder.get_method().c_str(), 1);
         setenv("SCRIPT_FILENAME", file.c_str(), 1);
@@ -437,10 +437,8 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
         setenv("CONTENT_TYPE", req_builder.get_header("Content-Type").c_str(), 1);
         setenv("CONTENT_LENGTH", req_builder.get_header("Content-Length").c_str(), 1);
         setenv("DOCUMENT_ROOT", location_conf.get_root().c_str(), 1);
-        setenv("TMPDIR", location_conf.get_upload_dir().c_str(), 1);
-        if (req_builder.get_method() == "GET") {
+        if (!req_builder.get_query_string().empty()) {
             setenv("QUERY_STRING", req_builder.get_query_string().c_str(), 1);
-            setenv("CONTENT_LENGTH", "0", 1);
         }
         const std::map<std::string, std::string> &headers = req_builder.get_headers();
         for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
@@ -472,7 +470,7 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
         close(pipe_fd[1]);
         close(pipe_fd2[0]);
 
-        write(pipe_fd2[1], req_builder.get_body().c_str(), req_builder.get_body().size());
+        write(pipe_fd2[1], req_builder.get_body().data(), req_builder.get_body().size());
         close(pipe_fd2[1]);
         ssize_t r;
         while ((r = read(pipe_fd[0], buffer, constants::BUFFER_SIZE)) != 0) {

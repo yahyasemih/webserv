@@ -5,11 +5,11 @@
 #include "client.hpp"
 
 client::client(int fd, sockaddr_in local_addr, sockaddr_in remote_addr) : buffer(), fd(fd), local_addr(local_addr),
-        remote_addr(remote_addr), header_started(false), header_completed(false), body_completed(false) {
+        remote_addr(remote_addr), header_completed(false), body_completed(false) {
 }
 
 client::client(const client &o) : buffer(), fd(o.fd), local_addr(o.local_addr), remote_addr(o.remote_addr),
-        content(o.content.str()), header_started(o.header_started), header_completed(o.header_completed),
+        req_builder(o.req_builder), content(o.content.str()), header_completed(o.header_completed),
         body_completed(o.body_completed) {
 }
 
@@ -19,9 +19,35 @@ ssize_t client::receive() {
         return res;
     }
     buffer[res] = '\0';
-    content.clear();
-    content << buffer;
-    process_received_data();
+    if (!header_completed) {
+        content << buffer;
+        size_t idx = content.str().find("\r\n\r\n");
+        if (idx != std::string::npos) {
+            process_request_line();
+            process_header_lines();
+            idx += 4;
+            ssize_t body_start_idx = static_cast<ssize_t>(idx) % constants::BUFFER_SIZE;
+            if (body_start_idx <= res) {
+                req_builder.append_body(buffer + body_start_idx, res - body_start_idx);
+            } else {
+                req_builder.append_body(content.str().c_str() + idx, content.str().size());
+                content.clear();
+                content.str("");
+            }
+            // TODO: handle chunked body
+            if (req_builder.get_header("Content-Length").empty()
+                    && req_builder.get_header("Transfer-Encoding").empty()) {
+                body_completed = true;
+                return res;
+            }
+        }
+    } else {
+        req_builder.append_body(buffer, res);
+    }
+    size_t body_length = std::strtoul(req_builder.get_header("Content-Length").c_str(), NULL, 10);
+    if (req_builder.get_body().size() == body_length) {
+        body_completed = true;
+    }
     return res;
 }
 
@@ -98,82 +124,70 @@ std::string url_decode(const std::string &url) {
     return decoded_url;
 }
 
-void client::process_received_data() {
+void client::reset() {
+    assert(header_completed && body_completed);
+    content.clear();
+    content.str("");
+    header_completed = false;
+    body_completed = false;
+}
+
+void client::process_request_line() {
     std::string request_line;
 
-    if (!header_started) {
-        if (std::getline(content, request_line) && *request_line.rbegin() == '\r') {
-            request_line.erase(request_line.size() - 1);
-            std::stringstream request_line_stream(request_line);
-            std::string method;
-            std::string path;
-            std::string query_string;
-            std::string http_version;
-
-            request_line_stream >> method;
-            request_line_stream >> path;
-            request_line_stream >> http_version;
-            req_builder.set_uri(path);
-            size_t idx = path.find('?');
-            if (idx != std::string::npos) {
-                query_string = path.c_str() + idx + 1;
-                path.erase(idx);
-            }
-            req_builder.set_method(method)
-                    .set_path(url_decode(path))
-                    .set_query_string(query_string)
-                    .set_http_version(http_version);
-            header_started = true;
-        } else {
-            content << request_line;
-            return;
-        }
-    }
-    while (!header_completed && std::getline(content, request_line) && *request_line.rbegin() == '\r') {
-        if (request_line == "\r") {
-            header_completed = true;
-            break;
-        }
+    std::getline(content, request_line);
+    if (*request_line.rbegin() == '\r') {
         request_line.erase(request_line.size() - 1);
-        std::string key;
-        std::string value;
-        size_t idx = request_line.find(':');
-        if (idx == std::string::npos || request_line.size() - idx < 2) {
-            continue; // ignoring invalid header
-        }
-        key = request_line.substr(0, idx);
-        value = request_line.substr(idx + 2);
-        req_builder.set_header(key, value);
     }
-    if (!header_completed) {
-        content.clear();
-        content.str(request_line);
-        return;
-    }
-    // at this point headers are done, processing body
-    // TODO: handle chunked body
-    if (req_builder.get_header("Content-Length").empty() && req_builder.get_header("Transfer-Encoding").empty()) {
-        body_completed = true;
+    if (request_line.empty()) {
+        // TODO: Bad Request
         return;
     }
 
-    while (std::getline(content, request_line)) {
-        req_builder.set_body(request_line);
-        if (content.good()) {
-            req_builder.set_body("\n");
-        }
+    std::stringstream request_line_stream(request_line);
+    std::string method;
+    std::string path;
+    std::string query_string;
+    std::string http_version;
+
+    request_line_stream >> method;
+    request_line_stream >> path;
+    request_line_stream >> http_version;
+    req_builder.set_uri(path);
+    size_t idx = path.find('?');
+    if (idx != std::string::npos) {
+        query_string = path.c_str() + idx + 1;
+        path.erase(idx);
     }
-    size_t body_length = std::strtoul(req_builder.get_header("Content-Length").c_str(), NULL, 10);
-    if (req_builder.get_body().size() == body_length) {
-        body_completed = true;
+    req_builder.set_method(method)
+            .set_path(url_decode(path))
+            .set_query_string(query_string)
+            .set_http_version(http_version);
+    if (req_builder.get_http_version() != constants::HTTP_VERSION) {
+        // TODO: Bad Request
+        return;
     }
 }
 
-void client::reset() {
-    assert(header_completed && body_completed == true);
+void client::process_header_lines() {
+    std::string header_line;
+    std::string key;
+    std::string value;
+    size_t idx;
+
+    while (std::getline(content, header_line) && *header_line.rbegin() == '\r') {
+        if (header_line == "\r") {
+            header_completed = true;
+            break;
+        }
+        header_line.erase(header_line.size() - 1);
+        idx = header_line.find(':');
+        if (idx == std::string::npos || header_line.size() - idx < 2) {
+            continue; // ignoring invalid header
+        }
+        key = header_line.substr(0, idx);
+        value = header_line.substr(idx + 2);
+        req_builder.set_header(key, value);
+    }
     content.clear();
-    content.str("");
-    header_started = false;
-    header_completed = false;
-    body_completed = false;
 }

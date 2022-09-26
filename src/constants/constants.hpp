@@ -17,6 +17,7 @@ public:
     typedef const std::map<std::string, std::string> mime_types_map;
 
     static const std::string SERVER_NAME;
+    static const std::string HTTP_VERSION;
     static status_map STATUS_STR;
     static mime_types_map MIME_TYPES;
     static const std::set<std::string> VALID_SCOPES;

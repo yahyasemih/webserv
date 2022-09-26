@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 class request_builder {
 public:
@@ -20,9 +21,8 @@ public:
     request_builder &set_query_string(const std::string &query_string);
     const std::string &get_http_version() const;
     request_builder &set_http_version(const std::string &http_version);
-    const std::string &get_body() const;
-    request_builder &set_body(const std::string &body);
-    const std::string &get_header(const std::string &key) const;
+    const std::vector<char> &get_body() const;
+    request_builder &append_body(const char *buffer, size_t size);
     std::string &get_header(const std::string &key);
     const std::map<std::string, std::string> &get_headers();
     request_builder &set_header(const std::string &key, const std::string &value);
@@ -34,7 +34,7 @@ private:
     std::string path;
     std::string query_string;
     std::string http_version;
-    std::string body;
+    std::vector<char> body;
     std::map<std::string, std::string> headers;
 };
 
