@@ -149,18 +149,24 @@ const server_config &server::get_matching_server(const std::string &ip, const st
     return *server_conf_ptr;
 }
 
-const location_config &server::get_matching_location(const std::string &path, const server_config & server_conf) {
+const location_config &server::get_matching_location(const request_builder &req_builder,
+         const server_config &server_conf) {
     size_t idx = 0;
-    std::string ext = get_file_extension(path);
+    std::string ext = get_file_extension(req_builder.get_uri());
 
     for (size_t i = 0; i < server_conf.get_location_configs().size(); ++i) {
         const location_config &location_conf = server_conf.get_location_configs().at(i);
-        if (path.find(location_conf.get_route()) == 0) {
-            idx = i;
+        const std::set<std::string> &accepted_methods = location_conf.get_accepted_methods();
+        if (accepted_methods.find(req_builder.get_method()) == accepted_methods.end()) {
+            continue;
         }
-        if (location_conf.is_cgi_route() && location_conf.get_cgi_extension() == ext) {
+        if (location_conf.is_cgi_route() && location_conf.get_cgi_extension() != ext) {
+            continue;
+        }
+        if (location_conf.is_cgi_route()) {
             idx = i;
-            break;
+        } else if (req_builder.get_uri().find(location_conf.get_route()) == 0) {
+            idx = i;
         }
     }
     return server_conf.get_location_configs().at(idx);
@@ -256,8 +262,8 @@ void server::handle_request(pollfd &pf) {
     response_builder res_builder;
     std::string file;
     const server_config &server_conf = get_matching_server(ip, host, port);
-    file = get_valid_path(server_conf.get_root(), req_builder.get_path());
-    const location_config &location_conf = get_matching_location(req_builder.get_uri(), server_conf);
+    const location_config &location_conf = get_matching_location(req_builder, server_conf);
+    file = get_valid_path(location_conf.get_root(), req_builder.get_path().c_str() + location_conf.get_route().size() - 1);
     std::string &response = c.get_response();
     size_t body_limit = location_conf.get_client_max_body_size();
     const std::set<std::string> &accepted_methods = location_conf.get_accepted_methods();

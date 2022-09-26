@@ -21,7 +21,7 @@ public:
     static status_map STATUS_STR;
     static mime_types_map MIME_TYPES;
     static const std::set<std::string> VALID_SCOPES;
-    static const int BUFFER_SIZE = 1024;
+    static const size_t BUFFER_SIZE = 256 * 1024; // 256 KB buffer
 };
 
 #endif //WEBSERV_CONSTANTS_HPP

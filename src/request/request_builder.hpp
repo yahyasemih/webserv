@@ -21,7 +21,7 @@ public:
     request_builder &set_query_string(const std::string &query_string);
     const std::string &get_http_version() const;
     request_builder &set_http_version(const std::string &http_version);
-    const std::vector<char> &get_body() const;
+    std::vector<char> &get_body();
     request_builder &append_body(const char *buffer, size_t size);
     std::string &get_header(const std::string &key);
     const std::map<std::string, std::string> &get_headers();

@@ -7,3 +7,4 @@ TODO: handle routes correctly: considering accepted methods when choosing; root=
 TODO: Handle correctly PUT (file uploading) and DELETE on static resources
 TODO: Handle redirection
 TODO: Handle file uploading
+TODO: Make CGI detection in server instead of location

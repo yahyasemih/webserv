@@ -5,16 +5,18 @@
 #include "client.hpp"
 
 client::client(int fd, sockaddr_in local_addr, sockaddr_in remote_addr) : buffer(), fd(fd), local_addr(local_addr),
-        remote_addr(remote_addr), header_completed(false), body_completed(false) {
+        remote_addr(remote_addr), header_completed(false), body_completed(false), is_chunked(false) {
 }
 
 client::client(const client &o) : buffer(), fd(o.fd), local_addr(o.local_addr), remote_addr(o.remote_addr),
         req_builder(o.req_builder), content(o.content.str()), header_completed(o.header_completed),
-        body_completed(o.body_completed) {
+        body_completed(o.body_completed), is_chunked(o.is_chunked) {
 }
 
 ssize_t client::receive() {
-    ssize_t res = recv(fd, buffer, constants::BUFFER_SIZE, 0);
+    bool just_ended = false;
+    const size_t buffer_size = header_completed ? constants::BUFFER_SIZE : 1;
+    ssize_t res = recv(fd, buffer, buffer_size, 0);
     if (res <= 0) {
         return res;
     }
@@ -25,28 +27,32 @@ ssize_t client::receive() {
         if (idx != std::string::npos) {
             process_request_line();
             process_header_lines();
-            idx += 4;
-            ssize_t body_start_idx = static_cast<ssize_t>(idx) % constants::BUFFER_SIZE;
-            if (body_start_idx <= res) {
-                req_builder.append_body(buffer + body_start_idx, res - body_start_idx);
-            } else {
-                req_builder.append_body(content.str().c_str() + idx, content.str().size());
-                content.clear();
-                content.str("");
-            }
-            // TODO: handle chunked body
-            if (req_builder.get_header("Content-Length").empty()
-                    && req_builder.get_header("Transfer-Encoding").empty()) {
-                body_completed = true;
-                return res;
-            }
+            just_ended = true;
         }
-    } else {
-        req_builder.append_body(buffer, res);
     }
-    size_t body_length = std::strtoul(req_builder.get_header("Content-Length").c_str(), NULL, 10);
-    if (req_builder.get_body().size() == body_length) {
-        body_completed = true;
+    if (!header_completed) {
+        return res;
+    }
+    content.clear();
+    content.str("");
+    if (just_ended) {
+        if (!is_chunked && req_builder.get_header("Content-Length").empty()) {
+            body_completed = true;
+        }
+        if (req_builder.get_header("Content-Length") == "0") {
+            body_completed = true;
+        }
+        return res;
+    }
+    req_builder.append_body(buffer, res);
+    if (is_chunked) {
+        // TODO: handle chunked request
+        throw std::runtime_error("not implemented");
+    } else {
+        size_t body_length = std::strtoul(req_builder.get_header("Content-Length").c_str(), NULL, 10);
+        if (req_builder.get_body().size() == body_length) {
+            body_completed = true;
+        }
     }
     return res;
 }
@@ -130,6 +136,7 @@ void client::reset() {
     content.str("");
     header_completed = false;
     body_completed = false;
+    is_chunked = false;
 }
 
 void client::process_request_line() {
@@ -187,7 +194,9 @@ void client::process_header_lines() {
         }
         key = header_line.substr(0, idx);
         value = header_line.substr(idx + 2);
+        if (!is_chunked && key == "Transfer-Encoding" && value == "chunked") {
+            is_chunked = true;
+        }
         req_builder.set_header(key, value);
     }
-    content.clear();
 }

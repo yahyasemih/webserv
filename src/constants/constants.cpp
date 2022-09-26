@@ -179,4 +179,4 @@ const constants::mime_types_map constants::MIME_TYPES = init_mime_types();
 
 const std::set<std::string> constants::VALID_SCOPES = init_valid_scopes();
 
-const int constants::BUFFER_SIZE;
+const size_t constants::BUFFER_SIZE;

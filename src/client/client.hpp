@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include <cassert>
+#include <cstring>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -42,6 +43,7 @@ private:
     std::stringstream content;
     bool header_completed;
     bool body_completed;
+    bool is_chunked;
 
     void process_request_line();
     void process_header_lines();
