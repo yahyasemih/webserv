@@ -21,43 +21,43 @@ server::server(const std::string &config_file) : is_running() {
         conf = parser.get_result();
     }
     protoent *protocol;
+    int socket_fd;
     int options = 1;
     protocol = getprotobyname("tcp");
     if (!protocol) {
         throw std::runtime_error("Error while getting protocol TCP");
     }
-    socket_fds.resize(conf.get_http_conf().get_server_configs().size());
-    for (size_t i = 0; i < socket_fds.size(); ++i) {
-        socket_fds[i] = socket(AF_INET, SOCK_STREAM, protocol->p_proto);
-        if (socket_fds[i] < 0) {
+    for (size_t i = 0; i < conf.get_http_conf().get_server_configs().size(); ++i) {
+        socket_fd = socket(AF_INET, SOCK_STREAM, protocol->p_proto);
+        if (socket_fd < 0) {
             perror("Socket creation failed : ");
             throw std::runtime_error("Socket creation failed");
         }
-        if (setsockopt(socket_fds[i], SOL_SOCKET, SO_REUSEADDR, &options, sizeof(options))) {
+        if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &options, sizeof(options))) {
             perror("Socket options : ");
             throw std::runtime_error("Setting socket option 'SO_REUSEADDR' failed : ");
         }
-        if (setsockopt(socket_fds[i], SOL_SOCKET, SO_NOSIGPIPE, &options, sizeof(options))) {
+        if (setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE, &options, sizeof(options))) {
             perror("Socket options : ");
             throw std::runtime_error("Setting socket option 'SO_NOSIGPIPE' failed : ");
         }
-        fcntl(socket_fds[i], F_SETFL, O_NONBLOCK);
+        fcntl(socket_fd, F_SETFL, O_NONBLOCK);
         sockaddr_in socket_addr = {};
         socket_addr.sin_family = AF_INET;
         const std::string &host = conf.get_http_conf().get_server_configs().at(i).get_host();
         in_port_t port = conf.get_http_conf().get_server_configs().at(i).get_port();
         socket_addr.sin_addr.s_addr = inet_addr(host.c_str());
         socket_addr.sin_port = htons(port);
-        if (bind(socket_fds[i], (sockaddr *)&socket_addr, sizeof(socket_addr)) < 0) {
+        if (bind(socket_fd, (sockaddr *)&socket_addr, sizeof(socket_addr)) < 0) {
             perror("Binding failed : ");
             throw std::runtime_error("Binding failed");
         }
-        if (listen(socket_fds[i], 100) < 0) {
+        if (listen(socket_fd, 100) < 0) {
             perror("Listening failed : ");
             throw std::runtime_error("Listening failed");
         }
         pollfd pf = {};
-        pf.fd = socket_fds[i];
+        pf.fd = socket_fd;
         pf.events = POLLSTANDARD;
         poll_fds.push_back(pf);
         std::cout << "Server successfully initialised on " << host << ":" << port << std::endl;
@@ -68,22 +68,22 @@ server::~server() {
     stop();
 }
 
-void server::accept_connection(size_t index) {
+void server::accept_connection(pollfd &pf) {
     sockaddr_in socket_addr = {};
     socklen_t addr_len = sizeof(socket_addr);
-    if (getsockname(socket_fds[index], (sockaddr *)&socket_addr, &addr_len)) {
+    if (getsockname(pf.fd, (sockaddr *)&socket_addr, &addr_len)) {
         perror("get socket name failed : ");
     }
     sockaddr_in socket_remote_addr = {};
-    int new_socket = accept(socket_fds[index], (sockaddr *)&socket_remote_addr, &addr_len);
+    int new_socket = accept(pf.fd, (sockaddr *)&socket_remote_addr, &addr_len);
     if (new_socket < 0) {
         perror("Could not accept connection : ");
     } else {
         fcntl(new_socket, F_SETFL, O_NONBLOCK);
-        pollfd pf = {};
-        pf.fd = new_socket;
-        pf.events = POLLIN | POLLOUT;
-        poll_fds.push_back(pf);
+        pollfd new_pf = {};
+        new_pf.fd = new_socket;
+        new_pf.events = POLLIN | POLLOUT;
+        poll_fds.push_back(new_pf);
         clients.insert(std::make_pair(new_socket, client(new_socket, socket_addr, socket_remote_addr)));
     }
 }
@@ -97,7 +97,7 @@ void server::start() {
                 for (size_t index = 0; index < poll_fds.size(); ++index) {
                     pollfd &pf = poll_fds.at(index);
                     if (pf.revents & POLLRDNORM) {
-                        accept_connection(index);
+                        accept_connection(pf);
                     } else if (pf.revents & POLLHUP) {
                         std::cout << "connection to fd " << pf.fd << " closed" << std::endl;
                         clients.erase(pf.fd);
@@ -121,10 +121,6 @@ void server::start() {
 void server::stop() {
     is_running = false;
     std::cout << "\rClosing server" << std::endl;
-    for (size_t i = 0; i < socket_fds.size(); ++i) {
-        shutdown(socket_fds[i], 2);
-        close(socket_fds[i]);
-    }
     for (size_t i = 0; i < poll_fds.size(); ++i) {
         shutdown(poll_fds[i].fd, 2);
         close(poll_fds[i].fd);
