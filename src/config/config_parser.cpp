@@ -42,7 +42,11 @@ std::string config_parser::get_absolute_path(const std::string &path) const {
     if (config_file[0] == '/') {
         parent_dir = config_file.substr(0, config_file.find_last_of('/')) + "/";
     } else {
-        parent_dir = getcwd(NULL, 0);
+        char *cwd = getcwd(NULL, 0);
+        if (cwd != NULL) {
+            parent_dir = cwd;
+            free(cwd);
+        }
         parent_dir += "/" + config_file;
         parent_dir.erase(parent_dir.find_last_of('/'));
     }
