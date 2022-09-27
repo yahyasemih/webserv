@@ -1,17 +1,11 @@
 #include "directory_listing_page_builder.hpp"
 
-directory_listing_page_builder::directory_listing_page_builder(std::string directory_path, const std::string &root) {
+directory_listing_page_builder::directory_listing_page_builder(const std::string &directory_path,
+        const std::string &root) {
     this->template_file_path = "src/directory_listing_page_builder/directory_listing_template.html";
     this->directory_path = directory_path;
-    directory_path.erase(directory_path.end() - 1);
-    this->directory_name = directory_path.substr(directory_path.rfind("/") + 1, directory_path.size());
     this->read_file();
     this->route = this->directory_path.substr(root.size(), this->directory_path.size());
-}
-
-directory_listing_page_builder::~directory_listing_page_builder()
-{
-
 }
 
 std::string directory_listing_page_builder::list_directory() {
@@ -38,7 +32,7 @@ std::string directory_listing_page_builder::list_directory() {
             add_new_table_entry(dirent_struct->d_name, "", "");
             continue;
         }
-        // We don't need size for a direcotory, we only display size for files.
+        // We don't need size for a directory, we only display size for files.
         if (file_stat.st_mode & S_IFDIR)
             size = "";
         else
@@ -60,22 +54,23 @@ std::string directory_listing_page_builder::get_file_readable_size(off_t size) {
     const long KiB = 1024;
     const long MiB = 1049000;
     const long GiB = 1074000000;
+
     if (size < KiB)
         size_string << size << " B";
-    else if (size >= KiB && size < MiB)
-        size_string << std::to_string(size / KiB) << " KB";
-    else if (size >= MiB && size < GiB)
-        size_string << std::to_string(size / MiB) << " MB";
+    else if (size < MiB)
+        size_string << (size / KiB) << " KB";
+    else if (size < GiB)
+        size_string << (size / MiB) << " MB";
     else
-        size_string << std::to_string(size / GiB) << " GB";
+        size_string << (size / GiB) << " GB";
     return size_string.str();
 }
 
 void directory_listing_page_builder::read_file() {
-    std::fstream file;
+    std::ifstream file;
     std::string line;
 
-    file.open(this->template_file_path, std::ios::in);
+    file.open(this->template_file_path.c_str());
     while (std::getline(file, line)) {
         this->template_content += line;
         if (file.good()) {
@@ -98,22 +93,23 @@ void directory_listing_page_builder::add_parent_directory_path() {
     else {
         // remove the last directory from route to get to the parent directory.
         std::string tmp(this->route);
-        tmp.erase(tmp.rfind("/"));
-        parent = tmp.substr(0, tmp.rfind("/") + 1);
+        tmp.erase(tmp.rfind('/'));
+        parent = tmp.substr(0, tmp.rfind('/') + 1);
     }
     size_t index = this->template_content.find(to_replace);
     this->template_content.replace(index, to_replace.size(), parent);
 }
 
-void directory_listing_page_builder::add_new_table_entry(const std::string &file_name, const std::string &size, const std::string &date) {
+void directory_listing_page_builder::add_new_table_entry(const std::string &file_name, const std::string &size,
+        const std::string &date) {
     size_t index = this->template_content.find("<tbody id='tbody'>");
     std::string pre = this->template_content.substr(0, index + 18);
     std::string post = this->template_content.substr(index + 18, this->template_content.length());
     pre += "\n<tr>\n"
-    "<td><a href='" + this->route + file_name + "'>" + file_name + "</a></td>\n"
-    "<td>" + size + "</td>\n"
-    "<td>" + date + "</td>\n"
-    "</tr>\n";
+        "<td><a href='" + this->route + file_name + "'>" + file_name + "</a></td>\n"
+        "<td>" + size + "</td>\n"
+        "<td>" + date + "</td>\n"
+        "</tr>\n";
     pre += post;
     this->template_content = pre;
 }

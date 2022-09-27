@@ -359,7 +359,7 @@ void server::process_request(request_builder &req_builder, response_builder &res
             if (location_conf.is_list_directory()) {
                 directory_listing_page_builder page(file, location_conf.get_root());
                 res_builder.set_status(200)
-                    .set_body(page.list_directory());
+                        .set_body(page.list_directory());
                 return;
             } else {
                 on_error(403, location_conf, res_builder);
