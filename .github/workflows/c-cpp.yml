@@ -1,0 +1,24 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2.0.0
+    - name: Symoblic link to g++-11
+      run: ln -s /usr/local/bin/g++-11 /usr/local/bin/g++
+    - name: Symoblic link to g++-11
+      run: ln -s /usr/local/bin/c++-11 /usr/local/bin/c++
+    - name: Build project
+      run: make
+    - name: Done
+      run: echo "Success"
