@@ -59,10 +59,7 @@ private:
     static std::string create_error_page(int status);
     static void on_error(int status, const location_config &location_conf, response_builder &res_builder);
     static void truncate_body(request_builder &req_builder, response_builder &res_builder, std::ifstream &f);
-    static void list_directory(std::string &path, response_builder &res_builder, const std::string &root);
     void serve_response(pollfd &pf);
-    static std::string get_file_readable_size(off_t size);
-    static std::string get_file_last_modified_date(struct timespec &ts);
 };
 
 #endif //WEBSERV_SERVER_HPP
