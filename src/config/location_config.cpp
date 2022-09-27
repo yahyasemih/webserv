@@ -4,8 +4,7 @@
 
 #include "location_config.hpp"
 
-location_config::location_config() : route("/"), client_max_body_size(), redirect("no"), upload_dir("."),
-        list_directory(true) {
+location_config::location_config() : route("/"), client_max_body_size(), redirect("no"), list_directory(true) {
     accepted_methods.insert("GET");
 }
 
