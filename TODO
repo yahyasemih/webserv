@@ -5,3 +5,4 @@ TODO: handle routes correctly: considering accepted methods when choosing; root=
 TODO: Handle redirection
 TODO: Add more ENV variables for CGI
 TODO: Handle request chunked body
+TODO: Add error and access logs
