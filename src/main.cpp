@@ -17,5 +17,6 @@ int main(int argc, char **argv) {
     } catch (const std::exception &e) {
         std::cerr << "Error while starting server: " << e.what() << std::endl;
     }
+    std::cout << std::tostring(10) << std::endl;
     return 0;
 }
