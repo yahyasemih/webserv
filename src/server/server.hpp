@@ -42,16 +42,17 @@ private:
 
     void accept_connection(pollfd &pf);
     void handle_request(pollfd &pf);
+    void serve_response(pollfd &pf);
     void clean_fds();
     const server_config &get_matching_server(const std::string &ip, const std::string &host, in_port_t port);
     static const location_config &get_matching_location(const request_builder &req_builder,
             const server_config &server_conf);
     static void process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
-            const server_config &server_conf, const location_config &location_conf);
+            const server_config &server_conf, const location_config &location_conf, const client &c);
     static void run_static(request_builder &req_builder, response_builder &res_builder, const std::string &file,
             const location_config &location_conf);
     static void run_cgi(request_builder &req_builder, response_builder &res_builder, const std::string &file,
-            const server_config &server_conf, const location_config &location_conf);
+            const server_config &server_conf, const location_config &location_conf, const client &c);
     static void handle_put_delete(request_builder &req_builder, response_builder &res_builder, std::string &file,
             const location_config &location_conf);
     static std::string get_mime_type(const std::string &file);
@@ -61,7 +62,8 @@ private:
     static std::string create_error_page(int status);
     static void on_error(int status, const location_config &location_conf, response_builder &res_builder);
     static void truncate_body(request_builder &req_builder, response_builder &res_builder, std::ifstream &f);
-    void serve_response(pollfd &pf);
+    static void set_environment_variables(request_builder &req_builder, const std::string &file,
+            const location_config &location_conf, const client &c);
 };
 
 #endif //WEBSERV_SERVER_HPP

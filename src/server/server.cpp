@@ -264,7 +264,7 @@ void server::handle_request(pollfd &pf) {
     } else if (body_limit > 0 && body_limit < req_builder.get_body().size()) {
         on_error(413, location_conf, res_builder);
     } else {
-        process_request(req_builder, res_builder, file, server_conf, location_conf);
+        process_request(req_builder, res_builder, file, server_conf, location_conf, c);
     }
     response = res_builder.build();
     pf.events = POLLOUT; // client ready to serve response, listening again to write events
@@ -326,7 +326,7 @@ void server::handle_put_delete(request_builder &req_builder, response_builder &r
 }
 
 void server::process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
-        const server_config &server_conf, const location_config &location_conf) {
+        const server_config &server_conf, const location_config &location_conf, const client &c) {
     if (!server_conf.is_cgi_route() && req_builder.get_method() != "GET" && req_builder.get_method() != "POST") {
         handle_put_delete(req_builder, res_builder, file, location_conf);
         return;
@@ -370,7 +370,7 @@ void server::process_request(request_builder &req_builder, response_builder &res
         }
     }
     if (server_conf.is_cgi_route() && get_file_extension(file) == server_conf.get_cgi_extension()) {
-        run_cgi(req_builder, res_builder, file, server_conf, location_conf);
+        run_cgi(req_builder, res_builder, file, server_conf, location_conf, c);
     } else {
         run_static(req_builder, res_builder, file, location_conf);
     }
@@ -388,7 +388,7 @@ void server::run_static(request_builder &req_builder, response_builder &res_buil
     }
     std::ifstream f(file.c_str());
     res_builder.set_status(200)
-            .set_header("Server", constants::SERVER_NAME)
+            .set_header("Server", constants::SERVER_NAME_VERSION)
             .set_header("Content-Type", get_mime_type(file))
             .append_body(f);
     if (!req_builder.get_header("Range").empty()) {
@@ -441,7 +441,7 @@ static int update_header_key(char c) {
 }
 
 void server::run_cgi(request_builder &req_builder, response_builder &res_builder, const std::string &file,
-        const server_config &server_conf, const location_config &location_conf) {
+        const server_config &server_conf, const location_config &location_conf, const client &c) {
     int pipe_fd[2];
     int pipe_fd2[2];
     if (pipe(pipe_fd) < 0) {
@@ -463,26 +463,7 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
         res_builder.set_status(502);
     } else if (pid == 0) {
         chdir(location_conf.get_root().c_str());
-        setenv("GATEWAY_INTERFACE", "CGI/1.1", 1);
-        setenv("SERVER_PROTOCOL", "HTTP/1.1", 1);
-        setenv("PATH_INFO", req_builder.get_uri().c_str(), 1);
-        setenv("REQUEST_URI", req_builder.get_uri().c_str(), 1);
-        setenv("REQUEST_METHOD", req_builder.get_method().c_str(), 1);
-        setenv("SCRIPT_FILENAME", file.c_str(), 1);
-        setenv("SCRIPT_NAME", get_file_basename(file).c_str(), 1);
-        setenv("REDIRECT_STATUS", "200", 1);
-        setenv("CONTENT_TYPE", req_builder.get_header("Content-Type").c_str(), 1);
-        setenv("CONTENT_LENGTH", req_builder.get_header("Content-Length").c_str(), 1);
-        setenv("DOCUMENT_ROOT", location_conf.get_root().c_str(), 1);
-        if (!req_builder.get_query_string().empty()) {
-            setenv("QUERY_STRING", req_builder.get_query_string().c_str(), 1);
-        }
-        const std::map<std::string, std::string> &headers = req_builder.get_headers();
-        for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
-            std::string key = "HTTP_";
-            std::transform(it->first.begin(), it->first.end(), std::back_inserter(key), update_header_key);
-            setenv(key.c_str(), it->second.c_str(), 1);
-        }
+        set_environment_variables(req_builder, file, location_conf, c);
 
         close(pipe_fd[0]);
         dup2(pipe_fd[1], 1);
@@ -492,6 +473,7 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
         dup2(pipe_fd2[0], 0);
         close(pipe_fd2[0]);
         close(2);
+
         const char *args[3] = {server_conf.get_cgi_path().c_str(), file.c_str(), NULL};
         int ret = execve(args[0], const_cast<char **>(args), environ);
         if (ret < 0) {
@@ -542,6 +524,59 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
     }
 }
 
+void server::set_environment_variables(request_builder &req_builder, const std::string &file,
+        const location_config &location_conf, const client &c) {
+    std::stringstream port_stream;
+    std::string server_port;
+    std::string remote_port;
+
+    port_stream << c.get_local_port();
+    server_port = port_stream.str();
+
+    port_stream.clear();
+    port_stream.str("");
+    port_stream << c.get_remote_port();
+    remote_port = port_stream.str();
+
+    setenv("GATEWAY_INTERFACE", constants::CGI_VERSION.c_str(), 1);
+    setenv("SERVER_PROTOCOL", constants::HTTP_VERSION.c_str(), 1);
+    setenv("REDIRECT_STATUS", "200", 1);
+
+    setenv("PATH_INFO", req_builder.get_path().c_str(), 1);
+    setenv("PATH_TRANSLATED", (location_conf.get_root() + req_builder.get_path()).c_str(), 1);
+
+    setenv("REQUEST_URI", req_builder.get_uri().c_str(), 1);
+    setenv("REQUEST_METHOD", req_builder.get_method().c_str(), 1);
+    if (!req_builder.get_query_string().empty()) {
+        setenv("QUERY_STRING", req_builder.get_query_string().c_str(), 1);
+    }
+
+    setenv("SCRIPT_FILENAME", file.c_str(), 1);
+    setenv("SCRIPT_NAME", get_file_basename(file).c_str(), 1);
+
+    setenv("CONTENT_TYPE", req_builder.get_header("Content-Type").c_str(), 1);
+    setenv("CONTENT_LENGTH", req_builder.get_header("Content-Length").c_str(), 1);
+
+    setenv("DOCUMENT_ROOT", location_conf.get_root().c_str(), 1);
+
+    if (!req_builder.get_header("Host").empty()) {
+        setenv("SERVER_NAME", req_builder.get_header("Host").c_str(), 1);
+    }
+    setenv("SERVER_ADDR", inet_ntoa(c.get_local_addr()), 1);
+    setenv("SERVER_PORT", server_port.c_str(), 1);
+    setenv("SERVER_SOFTWARE", constants::SERVER_NAME_VERSION.c_str(), 1);
+
+    setenv("REMOTE_ADDR", inet_ntoa(c.get_remote_addr()), 1);
+    setenv("REMOTE_PORT", remote_port.c_str(), 1);
+
+    const std::map<std::string, std::string> &headers = req_builder.get_headers();
+    for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+        std::string key = "HTTP_";
+        std::transform(it->first.begin(), it->first.end(), std::back_inserter(key), update_header_key);
+        setenv(key.c_str(), it->second.c_str(), 1);
+    }
+}
+
 void server::clean_fds() {
     // Remove any invalid file descriptor, previously closed and marked with -1
     for (std::vector<pollfd>::iterator it = poll_fds.begin(); it != poll_fds.end();) {
@@ -569,7 +604,7 @@ std::string server::create_error_page(int status) {
                 "\t<body>\r\n"
                     "\t\t<center><h1>" + str_stream.str() + "</h1></center>\r\n"
                     "\t\t<hr>\r\n"
-                    "\t\t<center>" + constants::SERVER_NAME + "</center>\r\n"
+                    "\t\t<center>" + constants::SERVER_NAME_VERSION + "</center>\r\n"
                 "\t</body>\r\n"
            "</html>";
 }
