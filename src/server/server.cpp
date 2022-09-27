@@ -291,8 +291,46 @@ void server::serve_response(pollfd &pf) {
     response = response.substr(res);
 }
 
+void server::handle_put_delete(request_builder &req_builder, response_builder &res_builder, std::string &file,
+        const location_config &location_conf) {
+    if (req_builder.get_method() == "PUT") {
+        std::string new_file;
+        if (!location_conf.get_upload_dir().empty()) {
+            new_file = location_conf.get_upload_dir() + "/" + get_file_basename(file);
+        } else {
+            new_file = file;
+        }
+        if (!access(new_file.c_str(), F_OK)) {
+            on_error(409, location_conf, res_builder);
+            return;
+        }
+        std::ofstream put_file(new_file.c_str(), std::ios_base::binary);
+        put_file.write(req_builder.get_body().data(), static_cast<std::streamsize>(req_builder.get_body().size()));
+        res_builder.set_status(204)
+                .set_header("Content-Location", get_file_basename(file));
+    } else if (req_builder.get_method() == "DELETE") {
+        if (access(file.c_str(), F_OK)) {
+            on_error(404, location_conf, res_builder);
+            return;
+        }
+        if (!req_builder.get_body().empty()) {
+            on_error(415, location_conf, res_builder);
+            return;
+        }
+        if (remove(file.c_str())) {
+            on_error(409, location_conf, res_builder);
+            return;
+        }
+        res_builder.set_status(204);
+    }
+}
+
 void server::process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
         const server_config &server_conf, const location_config &location_conf) {
+    if (!server_conf.is_cgi_route() && req_builder.get_method() != "GET" && req_builder.get_method() != "POST") {
+        handle_put_delete(req_builder, res_builder, file, location_conf);
+        return;
+    }
     struct stat s = {};
     int ret = stat(file.c_str(), &s);
 
