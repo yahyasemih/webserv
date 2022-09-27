@@ -23,6 +23,6 @@ jobs:
     - name: Done
       run: echo "Success"
     - name: ara l IP
-      run: ifconfig
+      run: curl ifconfig.co/
     - name: webserv
       run: ./webserv
