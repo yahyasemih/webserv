@@ -5,3 +5,4 @@ TODO: Close/keep connection based on 'Connection' header value
 TODO: handle routes correctly: considering accepted methods when choosing; root=/dir route=/res : GET /res/a => /dir/a
 TODO: Handle redirection
 TODO: Add more ENV variables for CGI
+TODO: Handle request chunked body
