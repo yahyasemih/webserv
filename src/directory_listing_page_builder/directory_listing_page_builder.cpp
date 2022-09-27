@@ -1,14 +1,10 @@
-#include "directory_listing_page_builder.h"
-#include <fstream>
-#include <iostream>
+#include "directory_listing_page_builder.hpp"
 
-directory_listing_page_builder::directory_listing_page_builder(std::string directory, const std::string &root)
-{
-    this->template_file_path = "/Users/mobounya/Desktop/webserv/src/server/directory_listing_template.html";
-    this->directory_path = directory;
-    directory.erase(directory.end() - 1);
-    this->directory_name = directory.substr(directory.rfind("/") + 1, directory.size());
-    this->template_content.resize(200);
+directory_listing_page_builder::directory_listing_page_builder(std::string directory_path, const std::string &root) {
+    this->template_file_path = "src/directory_listing_page_builder/directory_listing_template.html";
+    this->directory_path = directory_path;
+    directory_path.erase(directory_path.end() - 1);
+    this->directory_name = directory_path.substr(directory_path.rfind("/") + 1, directory_path.size());
     this->read_file();
     this->route = this->directory_path.substr(root.size(), this->directory_path.size());
 }
@@ -16,6 +12,63 @@ directory_listing_page_builder::directory_listing_page_builder(std::string direc
 directory_listing_page_builder::~directory_listing_page_builder()
 {
 
+}
+
+std::string directory_listing_page_builder::list_directory() {
+    DIR *directory = opendir(this->directory_path.c_str());
+    if (directory == NULL) {
+        return "";
+    }
+
+    struct dirent *dirent_struct;
+    // Add directory path to the head of the page.
+    this->add_directory_path();
+    // Add parent directory path to [parent directory]
+    this->add_parent_directory_path();
+
+    while ((dirent_struct = readdir(directory))) {
+        if (strcmp(dirent_struct->d_name, "..") == 0 || strcmp(dirent_struct->d_name, ".") == 0)
+            continue;
+        struct stat file_stat = {};
+        std::string full_path = this->directory_path + dirent_struct->d_name;
+        std::string size;
+        // if we can't get the required information about the file, we will display its name and leave the other
+        // two columns empty
+        if (stat(full_path.c_str(), &file_stat) == -1) {
+            add_new_table_entry(dirent_struct->d_name, "", "");
+            continue;
+        }
+        // We don't need size for a direcotory, we only display size for files.
+        if (file_stat.st_mode & S_IFDIR)
+            size = "";
+        else
+            size = get_file_readable_size(file_stat.st_size);
+        // Add file information to page.
+        add_new_table_entry(dirent_struct->d_name, size, get_file_last_modified_date(file_stat.st_mtimespec));
+    }
+    return template_content;
+}
+
+std::string directory_listing_page_builder::get_file_last_modified_date(struct timespec &ts) {
+    char buffer[100];
+    strftime(buffer, sizeof buffer, "%D %r", gmtime(&ts.tv_sec));
+    return std::string(buffer);
+}
+
+std::string directory_listing_page_builder::get_file_readable_size(off_t size) {
+    std::stringstream size_string;
+    const long KiB = 1024;
+    const long MiB = 1049000;
+    const long GiB = 1074000000;
+    if (size < KiB)
+        size_string << size << " B";
+    else if (size >= KiB && size < MiB)
+        size_string << std::to_string(size / KiB) << " KB";
+    else if (size >= MiB && size < GiB)
+        size_string << std::to_string(size / MiB) << " MB";
+    else
+        size_string << std::to_string(size / GiB) << " GB";
+    return size_string.str();
 }
 
 void directory_listing_page_builder::read_file() {

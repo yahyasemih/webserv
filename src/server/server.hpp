@@ -25,6 +25,7 @@
 #include "config_parser.hpp"
 #include "constants.hpp"
 #include "response_builder.hpp"
+#include "directory_listing_page_builder.hpp"
 
 class server {
 public:
