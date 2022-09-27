@@ -25,6 +25,7 @@
 #include "config_parser.hpp"
 #include "constants.hpp"
 #include "response_builder.hpp"
+#include "directory_listing_page_builder.hpp"
 
 class server {
 public:
@@ -60,7 +61,6 @@ private:
     static std::string create_error_page(int status);
     static void on_error(int status, const location_config &location_conf, response_builder &res_builder);
     static void truncate_body(request_builder &req_builder, response_builder &res_builder, std::ifstream &f);
-
     void serve_response(pollfd &pf);
 };
 

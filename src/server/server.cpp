@@ -347,6 +347,7 @@ void server::process_request(request_builder &req_builder, response_builder &res
             file += "/";
         }
         size_t i = 0;
+
         while (i < location_conf.get_indexes().size()) {
             std::string index_to_check = file + location_conf.get_indexes().at(i);
             if (!access(index_to_check.c_str(), F_OK | R_OK)) {
@@ -354,11 +355,11 @@ void server::process_request(request_builder &req_builder, response_builder &res
             }
             ++i;
         }
-        if (i == location_conf.get_indexes().size()) { // fallback to directory listing
+        if (i == location_conf.get_indexes().size()) { // Fallback to directory listing
             if (location_conf.is_list_directory()) {
-                // TODO: handle index
+                directory_listing_page_builder page(file, location_conf.get_root());
                 res_builder.set_status(200)
-                        .set_body("// TODO: handle index");
+                    .set_body(page.list_directory());
                 return;
             } else {
                 on_error(403, location_conf, res_builder);
