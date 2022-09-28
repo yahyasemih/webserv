@@ -33,6 +33,7 @@ static std::map<in_port_t, std::string> init_status_map() {
     map.insert(std::make_pair(305, "Use Proxy"));
     map.insert(std::make_pair(306, "(Unused)")); // Unused
     map.insert(std::make_pair(307, "Temporary Redirect"));
+    map.insert(std::make_pair(308, "Permanent Redirect"));
     // Client Error 4xx
     map.insert(std::make_pair(400, "Bad Request"));
     map.insert(std::make_pair(401, "Unauthorized"));
@@ -52,6 +53,14 @@ static std::map<in_port_t, std::string> init_status_map() {
     map.insert(std::make_pair(415, "Unsupported Media Type"));
     map.insert(std::make_pair(416, "Requested Range Not Satisfiable"));
     map.insert(std::make_pair(417, "Expectation Failed"));
+    map.insert(std::make_pair(418, "I'm a teapot"));
+    map.insert(std::make_pair(422, "Unprocessable Entity"));
+    map.insert(std::make_pair(425, "Too Early"));
+    map.insert(std::make_pair(426, "Upgrade Required"));
+    map.insert(std::make_pair(428, "Precondition Required"));
+    map.insert(std::make_pair(429, "Too Many Requests"));
+    map.insert(std::make_pair(431, "Request Header Fields Too Large"));
+    map.insert(std::make_pair(451, "Unavailable For Legal Reasons"));
     // Server Error 5xx
     map.insert(std::make_pair(500, "Internal Server Error"));
     map.insert(std::make_pair(501, "Not Implemented"));
@@ -59,6 +68,11 @@ static std::map<in_port_t, std::string> init_status_map() {
     map.insert(std::make_pair(503, "Service Unavailable"));
     map.insert(std::make_pair(504, "Gateway Timeout"));
     map.insert(std::make_pair(505, "HTTP Version Not Supported"));
+    map.insert(std::make_pair(506, "Variant Also Negotiates"));
+    map.insert(std::make_pair(507, "Insufficient Storage"));
+    map.insert(std::make_pair(508, "Loop Detected"));
+    map.insert(std::make_pair(510, "Not Extended"));
+    map.insert(std::make_pair(511, "Network Authentication Required"));
 
     return map;
 }
