@@ -255,11 +255,26 @@ void server::handle_request(pollfd &pf) {
     std::string file;
     const server_config &server_conf = get_matching_server(ip, host, port);
     const location_config &location_conf = get_matching_location(req_builder, server_conf);
-    file = get_valid_path(location_conf.get_root(), req_builder.get_path().c_str() + location_conf.get_route().size() - 1);
+    file = get_valid_path(location_conf.get_root(),
+            req_builder.get_path().c_str() + location_conf.get_route().size() - 1);
     std::string &response = c.get_response();
     size_t body_limit = location_conf.get_client_max_body_size();
     const std::set<std::string> &accepted_methods = location_conf.get_accepted_methods();
-    if (accepted_methods.find(req_builder.get_method()) == accepted_methods.end()) {
+    bool redirect = !location_conf.get_redirect().empty() && location_conf.get_redirect() != "no";
+
+    if (redirect) {
+        res_builder.set_status(301)
+                .set_header("Location", location_conf.get_redirect());
+        if (!req_builder.get_body().empty()) {
+            res_builder.set_body(req_builder.get_body().data());
+        }
+        if (!req_builder.get_header("Cookie").empty()) {
+            res_builder.set_header("Cookie", req_builder.get_header("Cookie"));
+        }
+        if (!req_builder.get_header("Set-Cookie").empty()) {
+            res_builder.set_header("Set-Cookie", req_builder.get_header("Set-Cookie"));
+        }
+    } else if (accepted_methods.find(req_builder.get_method()) == accepted_methods.end()) {
         on_error(405, location_conf, res_builder);
     } else if (body_limit > 0 && body_limit < req_builder.get_body().size()) {
         on_error(413, location_conf, res_builder);
@@ -483,7 +498,6 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
         }
         exit(1);
     } else {
-        // TODO: refactor and properly set error code and body in case of error in CGI
         std::stringstream strm;
         char buffer[constants::BUFFER_SIZE + 1];
         close(pipe_fd[1]);
@@ -513,7 +527,10 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
             std::string key = line.substr(0, idx);
             std::string value = line.substr(idx + 2);
             if (key == "Status") {
-                res_builder.set_status(std::strtol(value.c_str(), NULL, 10));
+                int cg_status = static_cast<int>(std::strtol(value.c_str(), NULL, 10));
+                if (constants::STATUS_STR.find(cg_status) != constants::STATUS_STR.end()) {
+                    res_builder.set_status(cg_status);
+                }
             }
             res_builder.set_header(key, value);
         }

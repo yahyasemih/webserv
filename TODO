@@ -2,6 +2,5 @@ TODO: Make error_page based on error code -> a page for 403, another one for 404
 TODO: Support listening to multiple ports in a single server
 TODO: Close/keep connection based on 'Connection' header value
 TODO: Test handling routes: considering accepted methods when choosing; root=/dir route=/res : GET /res/a => /dir/a
-TODO: Handle redirection
 TODO: Handle request chunked body
 TODO: Add error and access logs
