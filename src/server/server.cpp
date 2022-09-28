@@ -27,40 +27,48 @@ server::server(const std::string &config_file) : is_running() {
     if (!protocol) {
         throw std::runtime_error("Error while getting protocol TCP");
     }
+
+    std::set<address_port> already_opened;
+
     for (size_t i = 0; i < conf.get_http_conf().get_server_configs().size(); ++i) {
-        socket_fd = socket(AF_INET, SOCK_STREAM, protocol->p_proto);
-        if (socket_fd < 0) {
-            perror("Socket creation failed : ");
-            throw std::runtime_error("Socket creation failed");
+        const server_config &server_conf = conf.get_http_conf().get_server_configs().at(i);
+        std::set<address_port>::const_iterator it = server_conf.get_addresses().begin();
+
+        for (; it != server_conf.get_addresses().end(); ++it) {
+            if (already_opened.find(*it) != already_opened.end()) {
+                continue;
+            }
+            socket_fd = socket(AF_INET, SOCK_STREAM, protocol->p_proto);
+            if (socket_fd < 0) {
+                throw std::runtime_error("Socket creation failed");
+            }
+            if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &options, sizeof(options))) {
+                throw std::runtime_error("Setting socket option 'SO_REUSEADDR' failed : ");
+            }
+            if (setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE, &options, sizeof(options))) {
+                throw std::runtime_error("Setting socket option 'SO_NOSIGPIPE' failed : ");
+            }
+            fcntl(socket_fd, F_SETFL, O_NONBLOCK);
+            sockaddr_in socket_addr = {};
+            socket_addr.sin_family = AF_INET;
+            const std::string &ip = it->get_ip();
+            // TODO (minor): Check if IP is a valid IP
+            in_port_t port = it->get_port();
+            socket_addr.sin_addr.s_addr = inet_addr(ip.c_str());
+            socket_addr.sin_port = htons(port);
+            if (bind(socket_fd, (sockaddr *)&socket_addr, sizeof(socket_addr)) < 0) {
+                throw std::runtime_error("Binding failed");
+            }
+            if (listen(socket_fd, 256) < 0) {
+                throw std::runtime_error("Listening failed");
+            }
+            pollfd pf = {};
+            pf.fd = socket_fd;
+            pf.events = POLLSTANDARD;
+            poll_fds.push_back(pf);
+            std::cout << "Successfully listening on " << ip << ":" << port << std::endl;
+            already_opened.insert(*it);
         }
-        if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &options, sizeof(options))) {
-            perror("Socket options : ");
-            throw std::runtime_error("Setting socket option 'SO_REUSEADDR' failed : ");
-        }
-        if (setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE, &options, sizeof(options))) {
-            perror("Socket options : ");
-            throw std::runtime_error("Setting socket option 'SO_NOSIGPIPE' failed : ");
-        }
-        fcntl(socket_fd, F_SETFL, O_NONBLOCK);
-        sockaddr_in socket_addr = {};
-        socket_addr.sin_family = AF_INET;
-        const std::string &host = conf.get_http_conf().get_server_configs().at(i).get_host();
-        in_port_t port = conf.get_http_conf().get_server_configs().at(i).get_port();
-        socket_addr.sin_addr.s_addr = inet_addr(host.c_str());
-        socket_addr.sin_port = htons(port);
-        if (bind(socket_fd, (sockaddr *)&socket_addr, sizeof(socket_addr)) < 0) {
-            perror("Binding failed : ");
-            throw std::runtime_error("Binding failed");
-        }
-        if (listen(socket_fd, 100) < 0) {
-            perror("Listening failed : ");
-            throw std::runtime_error("Listening failed");
-        }
-        pollfd pf = {};
-        pf.fd = socket_fd;
-        pf.events = POLLSTANDARD;
-        poll_fds.push_back(pf);
-        std::cout << "Server successfully initialised on " << host << ":" << port << std::endl;
     }
 }
 
@@ -72,12 +80,12 @@ void server::accept_connection(pollfd &pf) {
     sockaddr_in socket_addr = {};
     socklen_t addr_len = sizeof(socket_addr);
     if (getsockname(pf.fd, (sockaddr *)&socket_addr, &addr_len)) {
-        perror("get socket name failed : ");
+        std::cout << "Get socket name failed";
     }
     sockaddr_in socket_remote_addr = {};
     int new_socket = accept(pf.fd, (sockaddr *)&socket_remote_addr, &addr_len);
     if (new_socket < 0) {
-        perror("Could not accept connection : ");
+        std::cout << "Could not accept connection";
     } else {
         fcntl(new_socket, F_SETFL, O_NONBLOCK);
         pollfd new_pf = {};
@@ -120,27 +128,32 @@ void server::start() {
 
 void server::stop() {
     is_running = false;
-    std::cout << "\rClosing server" << std::endl;
+    std::cout << "Closing server" << std::endl;
     for (size_t i = 0; i < poll_fds.size(); ++i) {
         shutdown(poll_fds[i].fd, 2);
         close(poll_fds[i].fd);
     }
 }
 
-const server_config &server::get_matching_server(const std::string &ip, const std::string &host, in_port_t port) {
+const server_config &server::get_matching_server(const std::string &ip, const std::string &hostname, in_port_t port) {
     const server_config *server_conf_ptr = NULL;
     for (size_t i = 0; i < conf.get_http_conf().get_server_configs().size(); ++i) {
         const server_config &server_conf = conf.get_http_conf().get_server_configs().at(i);
         const std::set<std::string> &server_names = server_conf.get_server_names();
-        if (server_names.find(host) != server_names.end() && server_conf.get_port() == port) {
+        address_port addr(ip, port);
+
+        if (server_names.find(hostname) != server_names.end()
+                && server_conf.get_addresses().find(addr) != server_conf.get_addresses().end()) {
             return server_conf;
         }
-        if (server_conf.get_port() == port && server_conf.get_host() == ip && server_conf_ptr == NULL) {
+
+        if (server_conf.get_addresses().find(addr) != server_conf.get_addresses().end() && server_conf_ptr == NULL) {
             server_conf_ptr = &server_conf;
         }
     }
+
     if (server_conf_ptr == NULL) {
-        throw std::runtime_error("No configuration match the {ip, host, port} provided");
+        throw std::runtime_error("No configuration match the {ip, hostname, port} provided");
     }
     return *server_conf_ptr;
 }
@@ -238,23 +251,25 @@ void server::handle_request(pollfd &pf) {
 
     request_builder req_builder(c.get_request());
     std::string ip = inet_ntoa(c.get_local_addr());
-    std::string host;
+    std::string hostname;
     in_port_t port = c.get_local_port();
-    std::string &header_host = req_builder.get_header("Host");
+    std::string &header_host = req_builder.get_header("address_port");
     if (!header_host.empty()) {
         size_t column_idx = header_host.find(':');
         if (column_idx == std::string::npos) {
-            host = header_host;
+            hostname = header_host;
         } else {
-            host = header_host.substr(0, column_idx);
+            hostname = header_host.substr(0, column_idx);
         }
     } else {
-        host = ip;
+        hostname = ip;
     }
+
     response_builder res_builder;
     std::string file;
-    const server_config &server_conf = get_matching_server(ip, host, port);
+    const server_config &server_conf = get_matching_server(ip, hostname, port);
     const location_config &location_conf = get_matching_location(req_builder, server_conf);
+
     file = get_valid_path(location_conf.get_root(),
             req_builder.get_path().c_str() + location_conf.get_route().size() - 1);
     std::string &response = c.get_response();

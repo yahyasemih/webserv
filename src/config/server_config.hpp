@@ -10,16 +10,17 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <map>
 
 #include "location_config.hpp"
+#include "address_port.hpp"
 
 class server_config {
 public:
     server_config();
-    const std::string &get_host() const;
-    void set_host(const std::string &host);
-    in_port_t get_port() const;
-    void set_port(in_port_t port);
+
+    void add_address(const std::string &ip, in_port_t port);
+    const std::set<address_port> &get_addresses() const;
     const std::string &get_root() const;
     void set_root(const std::string &root);
     const std::set<std::string> &get_server_names() const;
@@ -41,11 +42,10 @@ public:
     void set_cgi_path(const std::string &cgi_path);
     const std::string &get_cgi_extension() const;
     void set_cgi_extension(const std::string &cgi_extension);
-
     bool is_cgi_route() const;
+
 private:
-    std::string host;
-    in_port_t port;
+    std::set<address_port> addresses;
     std::string root;
     std::set<std::string> server_names;
     std::vector<location_config> location_configs;

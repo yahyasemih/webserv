@@ -4,23 +4,16 @@
 
 #include "server_config.hpp"
 
-server_config::server_config() : host("127.0.0.1"), port(8080), client_max_body_size() {
+server_config::server_config() : client_max_body_size() {
 }
 
-const std::string &server_config::get_host() const {
-    return host;
+void server_config::add_address(const std::string &ip, in_port_t port) {
+    address_port address(ip, port);
+    this->addresses.insert(address);
 }
 
-void server_config::set_host(const std::string &host) {
-    this->host = host;
-}
-
-in_port_t server_config::get_port() const {
-    return port;
-}
-
-void server_config::set_port(in_port_t port) {
-    this->port = port;
+const std::set<address_port> &server_config::get_addresses() const {
+    return addresses;
 }
 
 const std::string &server_config::get_root() const {

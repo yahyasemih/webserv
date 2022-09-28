@@ -8,6 +8,7 @@ SRCS = src/main.cpp \
 	src/config/http_config.cpp \
 	src/config/location_config.cpp \
 	src/config/server_config.cpp \
+	src/config/address_port.cpp \
 	src/constants/constants.cpp \
 	src/request/request_builder.cpp \
 	src/response/response_builder.cpp \
