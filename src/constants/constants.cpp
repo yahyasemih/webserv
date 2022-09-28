@@ -4,9 +4,11 @@
 
 #include "constants.hpp"
 
-const std::string constants::SERVER_NAME = "yez-zain-server/1.0.0 (UNIX)";
+const std::string constants::SERVER_NAME_VERSION = "leet-server/1.0.0 (UNIX)";
 
 const std::string constants::HTTP_VERSION = "HTTP/1.1";
+
+const std::string constants::CGI_VERSION = "CGI/1.1";
 
 static std::map<in_port_t, std::string> init_status_map() {
     std::map<in_port_t, std::string> map;
