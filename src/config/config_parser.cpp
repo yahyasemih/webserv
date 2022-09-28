@@ -215,21 +215,21 @@ bool config_parser::parse_config() {
                             error_line = line_nbr;
                             return false;
                         }
-                        const std::string &host_port = server_instruction_list.at(i).at(1);
-                        std::string host;
+                        const std::string &ip_port = server_instruction_list.at(i).at(1);
+                        std::string ip;
                         in_port_t port;
-                        size_t idx = host_port.find(':');
+                        std::stringstream port_stream;
+                        size_t idx = ip_port.find(':');
                         if (idx != std::string::npos) {
-                            host = host_port.substr(0, idx);
-                            std::stringstream host_stream(host_port.substr(idx + 1));
-                            host_stream >> port;
+                            ip = ip_port.substr(0, idx);
+                            port_stream.str(ip_port.substr(idx + 1));
                         } else {
-                            host = host_port;
-                            port = 80;
+                            ip = "0.0.0.0";
+                            port_stream.str(ip_port);
                         }
+                        port_stream >> port;
 
-                        server_conf.set_host(host);
-                        server_conf.set_port(port);
+                        server_conf.add_address(ip, port);
                     } else if (server_instruction_list.at(i).at(0) == "root") {
                         if (server_instruction_list.at(i).size() != 2) {
                             error_message = "Invalid number of args for 'root'";
