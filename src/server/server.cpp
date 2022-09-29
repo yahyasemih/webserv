@@ -20,11 +20,14 @@ server::server(const std::string &config_file) : is_running() {
     } else {
         conf = parser.get_result();
     }
+
+    logger error_logger(conf.get_error_log());
     protoent *protocol;
     int socket_fd;
     int options = 1;
     protocol = getprotobyname("tcp");
     if (!protocol) {
+        error_logger.error("Error while getting protocol TCP");
         throw std::runtime_error("Error while getting protocol TCP");
     }
 
@@ -40,13 +43,16 @@ server::server(const std::string &config_file) : is_running() {
             }
             socket_fd = socket(AF_INET, SOCK_STREAM, protocol->p_proto);
             if (socket_fd < 0) {
+                error_logger.error("Socket creation failed");
                 throw std::runtime_error("Socket creation failed");
             }
             if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &options, sizeof(options))) {
-                throw std::runtime_error("Setting socket option 'SO_REUSEADDR' failed : ");
+                error_logger.error("Setting socket option 'SO_REUSEADDR' failed");
+                throw std::runtime_error("Setting socket option 'SO_REUSEADDR' failed");
             }
             if (setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE, &options, sizeof(options))) {
-                throw std::runtime_error("Setting socket option 'SO_NOSIGPIPE' failed : ");
+                error_logger.error("Setting socket option 'SO_NOSIGPIPE' failed");
+                throw std::runtime_error("Setting socket option 'SO_NOSIGPIPE' failed");
             }
             fcntl(socket_fd, F_SETFL, O_NONBLOCK);
             sockaddr_in socket_addr = {};
@@ -57,9 +63,11 @@ server::server(const std::string &config_file) : is_running() {
             socket_addr.sin_addr.s_addr = inet_addr(ip.c_str());
             socket_addr.sin_port = htons(port);
             if (bind(socket_fd, (sockaddr *)&socket_addr, sizeof(socket_addr)) < 0) {
+                error_logger.error("Binding failed");
                 throw std::runtime_error("Binding failed");
             }
             if (listen(socket_fd, 256) < 0) {
+                error_logger.error("Listening failed");
                 throw std::runtime_error("Listening failed");
             }
             pollfd pf = {};
@@ -77,15 +85,16 @@ server::~server() {
 }
 
 void server::accept_connection(pollfd &pf) {
+    logger error_logger(conf.get_error_log());
     sockaddr_in socket_addr = {};
     socklen_t addr_len = sizeof(socket_addr);
     if (getsockname(pf.fd, (sockaddr *)&socket_addr, &addr_len)) {
-        std::cout << "Get socket name failed";
+        error_logger.error("Get socket name failed");
     }
     sockaddr_in socket_remote_addr = {};
     int new_socket = accept(pf.fd, (sockaddr *)&socket_remote_addr, &addr_len);
     if (new_socket < 0) {
-        std::cout << "Could not accept connection";
+        error_logger.error("Could not accept connection");
     } else {
         fcntl(new_socket, F_SETFL, O_NONBLOCK);
         pollfd new_pf = {};
@@ -98,6 +107,8 @@ void server::accept_connection(pollfd &pf) {
 
 void server::start() {
     is_running = true;
+    logger error_logger(conf.get_error_log());
+
     while (is_running) {
         try {
             int r = poll(poll_fds.data(), poll_fds.size(), 0);
@@ -120,7 +131,7 @@ void server::start() {
                 clean_fds();
             }
         } catch (const std::exception &e) {
-            std::cerr << "Exception: " << e.what() << std::endl;
+            error_logger.error("Exception: " + std::string(e.what() ? e.what() : ""));
             stop();
         }
     }
@@ -161,7 +172,6 @@ const server_config &server::get_matching_server(const std::string &ip, const st
 const location_config &server::get_matching_location(const request_builder &req_builder,
          const server_config &server_conf) {
     size_t idx = 0;
-    std::string ext = get_file_extension(req_builder.get_uri());
 
     for (size_t i = 0; i < server_conf.get_location_configs().size(); ++i) {
         const location_config &location_conf = server_conf.get_location_configs().at(i);
@@ -229,19 +239,22 @@ std::string server::get_file_basename(const std::string &file) {
 }
 
 void server::handle_request(pollfd &pf) {
+    logger error_logger(conf.get_error_log());
     client &c = clients.at(pf.fd);
     ssize_t res = c.receive();
 
     if (res <= 0) {
+        std::ostringstream error_msg;
         if (res < 0) {
-            std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
+            error_msg << "error occurred, dropping connection with fd " << pf.fd;
         } else {
-            std::cout << "client with fd " << pf.fd;
-            std::cout << " closed its half side of the connection" << std::endl;
+            error_msg << "client with fd " << pf.fd;
+            error_msg << " closed its half side of the connection";
         }
         clients.erase(pf.fd);
         close(pf.fd);
         pf.fd = -1;
+        error_logger.error(error_msg.str());
         return;
     }
 
@@ -269,6 +282,7 @@ void server::handle_request(pollfd &pf) {
     std::string file;
     const server_config &server_conf = get_matching_server(ip, hostname, port);
     const location_config &location_conf = get_matching_location(req_builder, server_conf);
+    logger access_logger(server_conf.get_access_log());
 
     file = get_valid_path(location_conf.get_root(),
             req_builder.get_path().c_str() + location_conf.get_route().size() - 1);
@@ -296,6 +310,7 @@ void server::handle_request(pollfd &pf) {
     } else {
         process_request(req_builder, res_builder, file, server_conf, location_conf, c);
     }
+    access_logger.access(req_builder, res_builder, c);
     response = res_builder.build();
     pf.events = POLLOUT; // client ready to serve response, listening again to write events
 }
@@ -312,10 +327,13 @@ void server::serve_response(pollfd &pf) {
     }
     ssize_t res = send(pf.fd, response.c_str(), response.size(), 0);
     if (res < 0) {
-        std::cout << "error occurred, dropping connection with fd " << pf.fd << std::endl;
+        logger error_logger(conf.get_error_log());
+        std::ostringstream error_msg;
+        error_msg << "error occurred, dropping connection with fd " << pf.fd;
         clients.erase(pf.fd);
         close(pf.fd);
         pf.fd = -1;
+        error_logger.error(error_msg.str());
         return;
     }
     response = response.substr(res);

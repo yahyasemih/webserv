@@ -10,8 +10,8 @@ const std::string constants::HTTP_VERSION = "HTTP/1.1";
 
 const std::string constants::CGI_VERSION = "CGI/1.1";
 
-static std::map<in_port_t, std::string> init_status_map() {
-    std::map<in_port_t, std::string> map;
+static std::map<int, std::string> init_status_map() {
+    std::map<int, std::string> map;
 
     // Informational 1xx
     map.insert(std::make_pair(100, "Continue"));

@@ -13,7 +13,7 @@
 
 class constants {
 public:
-    typedef const std::map<in_port_t, std::string> status_map;
+    typedef const std::map<int, std::string> status_map;
     typedef const std::map<std::string, std::string> mime_types_map;
 
     static const std::string SERVER_NAME_VERSION;

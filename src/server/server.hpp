@@ -24,6 +24,7 @@
 #include "config.hpp"
 #include "config_parser.hpp"
 #include "constants.hpp"
+#include "logger.hpp"
 #include "response_builder.hpp"
 #include "directory_listing_page_builder.hpp"
 
