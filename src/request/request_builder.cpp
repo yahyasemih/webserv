@@ -71,7 +71,7 @@ const std::string &request_builder::get_header(const std::string &key) const {
 }
 
 request_builder &request_builder::set_header(const std::string &key, const std::string &value) {
-    this->headers.insert(std::make_pair(key, value));
+    this->headers[key] = value;
     return *this;
 }
 

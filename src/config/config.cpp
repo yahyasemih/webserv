@@ -11,10 +11,6 @@ http_config &config::get_http_conf() {
     return http_conf;
 }
 
-void config::set_http_conf(const http_config &http_conf) {
-    this->http_conf = http_conf;
-}
-
 const std::string &config::get_error_log() const {
     return error_log;
 }

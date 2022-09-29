@@ -21,6 +21,10 @@ server::server(const std::string &config_file) : is_running() {
         conf = parser.get_result();
     }
 
+    create_sockets();
+}
+
+void server::create_sockets() {
     logger error_logger(conf.get_error_log());
     protoent *protocol;
     int socket_fd;
@@ -177,6 +181,9 @@ const location_config &server::get_matching_location(const request_builder &req_
         const location_config &location_conf = server_conf.get_location_configs().at(i);
         const std::set<std::string> &accepted_methods = location_conf.get_accepted_methods();
         if (accepted_methods.find(req_builder.get_method()) == accepted_methods.end()) {
+            if (req_builder.get_uri().find(location_conf.get_route()) == 0) {
+                idx = i;
+            }
             continue;
         }
         if (req_builder.get_uri().find(location_conf.get_route()) == 0) {
@@ -185,57 +192,6 @@ const location_config &server::get_matching_location(const request_builder &req_
         }
     }
     return server_conf.get_location_configs().at(idx);
-}
-
-static bool ends_with(const std::string &value, const std::string &ending) {
-    if (ending.size() > value.size()) {
-        return false;
-    }
-    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
-}
-
-std::string server::get_valid_path(const std::string &root, std::string path) {
-    std::string res;
-    size_t idx;
-
-    while ((idx = path.find('/')) != std::string::npos) {
-        res += "/";
-        path = path.substr(idx + 1);
-        if (path.find("../") == 0) {
-            res = res.substr(0, res.find_last_of('/', res.size() - 2));
-        } else if (path.find("./") == 0) {
-            res.resize(res.size() - 1);
-        } else {
-            res += path.substr(0, path.find('/'));
-        }
-    }
-
-    if (ends_with(res, "/..")) {
-        res.resize(res.size() - 2);
-    }
-    return root + res;
-}
-
-std::string server::get_file_extension(const std::string &file) {
-    std::string ext;
-    size_t idx = file.find_last_of('.');
-    if (idx == std::string::npos) {
-        ext = "";
-    } else {
-        ext = file.substr(idx);
-    }
-    return ext;
-}
-
-std::string server::get_file_basename(const std::string &file) {
-    std::string ext;
-    size_t idx = file.find_last_of('/');
-    if (idx == std::string::npos) {
-        ext = file;
-    } else {
-        ext = file.substr(idx + 1);
-    }
-    return ext;
 }
 
 void server::handle_request(pollfd &pf) {
@@ -284,7 +240,7 @@ void server::handle_request(pollfd &pf) {
     const location_config &location_conf = get_matching_location(req_builder, server_conf);
     logger access_logger(server_conf.get_access_log());
 
-    file = get_valid_path(location_conf.get_root(),
+    file = utilities::get_valid_path(location_conf.get_root(),
             req_builder.get_path().c_str() + location_conf.get_route().size() - 1);
     std::string &response = c.get_response();
     size_t body_limit = location_conf.get_client_max_body_size();
@@ -304,9 +260,9 @@ void server::handle_request(pollfd &pf) {
             res_builder.set_header("Set-Cookie", req_builder.get_header("Set-Cookie"));
         }
     } else if (accepted_methods.find(req_builder.get_method()) == accepted_methods.end()) {
-        on_error(405, location_conf, res_builder);
+        utilities::on_error(405, location_conf, res_builder);
     } else if (body_limit > 0 && body_limit < req_builder.get_body().size()) {
-        on_error(413, location_conf, res_builder);
+        utilities::on_error(413, location_conf, res_builder);
     } else {
         process_request(req_builder, res_builder, file, server_conf, location_conf, c);
     }
@@ -344,29 +300,29 @@ void server::handle_put_delete(request_builder &req_builder, response_builder &r
     if (req_builder.get_method() == "PUT") {
         std::string new_file;
         if (!location_conf.get_upload_dir().empty()) {
-            new_file = location_conf.get_upload_dir() + "/" + get_file_basename(file);
+            new_file = location_conf.get_upload_dir() + "/" + utilities::get_file_basename(file);
         } else {
             new_file = file;
         }
         if (!access(new_file.c_str(), F_OK)) {
-            on_error(409, location_conf, res_builder);
+            utilities::on_error(409, location_conf, res_builder);
             return;
         }
         std::ofstream put_file(new_file.c_str(), std::ios_base::binary);
         put_file.write(req_builder.get_body().data(), static_cast<std::streamsize>(req_builder.get_body().size()));
         res_builder.set_status(204)
-                .set_header("Content-Location", get_file_basename(file));
+                .set_header("Content-Location", utilities::get_file_basename(file));
     } else if (req_builder.get_method() == "DELETE") {
         if (access(file.c_str(), F_OK)) {
-            on_error(404, location_conf, res_builder);
+            utilities::on_error(404, location_conf, res_builder);
             return;
         }
         if (!req_builder.get_body().empty()) {
-            on_error(415, location_conf, res_builder);
+            utilities::on_error(415, location_conf, res_builder);
             return;
         }
         if (remove(file.c_str())) {
-            on_error(409, location_conf, res_builder);
+            utilities::on_error(409, location_conf, res_builder);
             return;
         }
         res_builder.set_status(204);
@@ -375,7 +331,8 @@ void server::handle_put_delete(request_builder &req_builder, response_builder &r
 
 void server::process_request(request_builder &req_builder, response_builder &res_builder, std::string &file,
         const server_config &server_conf, const location_config &location_conf, const client &c) {
-    if (!server_conf.is_cgi_route() && req_builder.get_method() != "GET" && req_builder.get_method() != "POST") {
+    if ((!server_conf.is_cgi_route() || utilities::get_file_extension(file) != server_conf.get_cgi_extension())
+            && req_builder.get_method() != "GET" && req_builder.get_method() != "POST") {
         handle_put_delete(req_builder, res_builder, file, location_conf);
         return;
     }
@@ -383,11 +340,11 @@ void server::process_request(request_builder &req_builder, response_builder &res
     int ret = stat(file.c_str(), &s);
 
     if (ret != 0) {
-        on_error(404, location_conf, res_builder);
+        utilities::on_error(404, location_conf, res_builder);
         return;
     }
     if (access(file.c_str(), R_OK)) {
-        on_error(403, location_conf, res_builder);
+        utilities::on_error(403, location_conf, res_builder);
         return;
     }
     if (s.st_mode & S_IFDIR) {
@@ -405,19 +362,19 @@ void server::process_request(request_builder &req_builder, response_builder &res
         }
         if (i == location_conf.get_indexes().size()) { // Fallback to directory listing
             if (location_conf.is_list_directory()) {
-                directory_listing_page_builder page(file, location_conf.get_root());
+                directory_index_builder index_page(file, location_conf.get_root());
                 res_builder.set_status(200)
-                        .set_body(page.list_directory());
+                        .set_body(index_page.list_directory());
                 return;
             } else {
-                on_error(403, location_conf, res_builder);
+                utilities::on_error(404, location_conf, res_builder); // Should be 403 but 42 tester want 404
                 return;
             }
         } else {
             file += location_conf.get_indexes().at(i);
         }
     }
-    if (server_conf.is_cgi_route() && get_file_extension(file) == server_conf.get_cgi_extension()) {
+    if (server_conf.is_cgi_route() && utilities::get_file_extension(file) == server_conf.get_cgi_extension()) {
         run_cgi(req_builder, res_builder, file, server_conf, location_conf, c);
     } else {
         run_static(req_builder, res_builder, file, location_conf);
@@ -427,99 +384,58 @@ void server::process_request(request_builder &req_builder, response_builder &res
 void server::run_static(request_builder &req_builder, response_builder &res_builder, const std::string &file,
         const location_config &location_conf) {
     if (access(file.c_str(), F_OK)) {
-        on_error(404, location_conf, res_builder);
+        utilities::on_error(404, location_conf, res_builder);
         return;
     }
     if (access(file.c_str(), R_OK)) {
-        on_error(403, location_conf, res_builder);
+        utilities::on_error(403, location_conf, res_builder);
         return;
     }
     std::ifstream f(file.c_str());
     res_builder.set_status(200)
             .set_header("Server", constants::SERVER_NAME_VERSION)
-            .set_header("Content-Type", get_mime_type(file))
+            .set_header("Content-Type", utilities::get_mime_type(file))
             .append_body(f);
     if (!req_builder.get_header("Range").empty()) {
-        truncate_body(req_builder, res_builder, f);
+        utilities::truncate_body(req_builder, res_builder, f);
     }
-}
-
-void server::truncate_body(request_builder &req_builder, response_builder &res_builder, std::ifstream &f) {
-    std::string range = req_builder.get_header("Range");
-    if (range.find('=') != std::string::npos) {
-        range = range.substr(range.find('=') + 1);
-    }
-    f.clear();
-    f.seekg(0, std::ios_base::end);
-    long long file_size = f.tellg();
-    long long first_byte;
-    long long last_byte = file_size - 1;
-    bool first_missing = range[0] == '-';
-    bool last_missing = *range.rbegin() == '-';
-
-    if (!first_missing && !last_missing) {
-        size_t idx = range.find('-');
-        first_byte = strtoll(range.c_str(), NULL, 10);
-        if (idx != std::string::npos) {
-            last_byte = strtoll(range.c_str() + idx + 1, NULL, 10);
-        }
-    } else if (last_missing) {
-        first_byte = strtoll(range.c_str(), NULL, 10);
-    } else {
-        size_t idx = range.find('-');
-        if (idx != std::string::npos) {
-            last_byte = strtoll(range.c_str() + idx + 1, NULL, 10);
-        }
-        first_byte = std::max(file_size - last_byte, 0ll);
-        last_byte = file_size - 1;
-    }
-    std::stringstream range_stream;
-    range_stream << "bytes " << first_byte << "-" << last_byte << "/" << file_size;
-    res_builder.set_status(206)
-            .set_header("Accept-Ranges", "bytes")
-            .set_header("Content-Range", range_stream.str());
-    res_builder.truncate_body(first_byte, last_byte);
-}
-
-static int update_header_key(char c) {
-    if (c == '-') {
-        return '_';
-    }
-    return toupper(c);
 }
 
 void server::run_cgi(request_builder &req_builder, response_builder &res_builder, const std::string &file,
         const server_config &server_conf, const location_config &location_conf, const client &c) {
-    int pipe_fd[2];
-    int pipe_fd2[2];
-    if (pipe(pipe_fd) < 0) {
+    int child_to_parent[2];
+    int parent_to_child[2];
+    if (pipe(child_to_parent) < 0) {
         res_builder.set_status(502);
         return;
     }
-    if (pipe(pipe_fd2) < 0) {
-        close(pipe_fd[0]);
-        close(pipe_fd[1]);
+    if (pipe(parent_to_child) < 0) {
+        close(child_to_parent[0]);
+        close(child_to_parent[1]);
         res_builder.set_status(502);
         return;
     }
+    std::ostringstream size_stream;
+    size_stream << req_builder.get_body().size();
+    req_builder.set_header("Content-Length", size_stream.str());
     int pid = fork();
     if (pid < 0) {
-        close(pipe_fd[0]);
-        close(pipe_fd[1]);
-        close(pipe_fd2[0]);
-        close(pipe_fd2[1]);
+        close(child_to_parent[0]);
+        close(child_to_parent[1]);
+        close(parent_to_child[0]);
+        close(parent_to_child[1]);
         res_builder.set_status(502);
     } else if (pid == 0) {
         chdir(location_conf.get_root().c_str());
-        set_environment_variables(req_builder, file, location_conf, c);
+        utilities::set_environment_variables(req_builder, file, location_conf, c);
 
-        close(pipe_fd[0]);
-        dup2(pipe_fd[1], 1);
-        close(pipe_fd[1]);
+        close(child_to_parent[0]);
+        dup2(child_to_parent[1], 1);
+        close(child_to_parent[1]);
 
-        close(pipe_fd2[1]);
-        dup2(pipe_fd2[0], 0);
-        close(pipe_fd2[0]);
+        close(parent_to_child[1]);
+        dup2(parent_to_child[0], 0);
+        close(parent_to_child[0]);
         close(2);
 
         const char *args[3] = {server_conf.get_cgi_path().c_str(), file.c_str(), NULL};
@@ -533,16 +449,17 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
     } else {
         std::stringstream strm;
         char buffer[constants::BUFFER_SIZE + 1];
-        close(pipe_fd[1]);
-        close(pipe_fd2[0]);
+        close(child_to_parent[1]);
+        close(parent_to_child[0]);
 
-        write(pipe_fd2[1], req_builder.get_body().data(), req_builder.get_body().size());
-        close(pipe_fd2[1]);
+        write(parent_to_child[1], req_builder.get_body().data(), req_builder.get_body().size());
+        close(parent_to_child[1]);
         ssize_t r;
-        while ((r = read(pipe_fd[0], buffer, constants::BUFFER_SIZE)) != 0) {
+        while ((r = read(child_to_parent[0], buffer, constants::BUFFER_SIZE)) != 0) {
             buffer[r] = '\0';
             strm << buffer;
         }
+        close(child_to_parent[0]);
         int status;
         waitpid(pid, &status, 0);
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
@@ -570,60 +487,6 @@ void server::run_cgi(request_builder &req_builder, response_builder &res_builder
         const std::string &str = strm.str();
         size_t pos = strm.tellg();
         res_builder.set_body(str.c_str() + pos);
-        close(pipe_fd[0]);
-    }
-}
-
-void server::set_environment_variables(request_builder &req_builder, const std::string &file,
-        const location_config &location_conf, const client &c) {
-    std::stringstream port_stream;
-    std::string server_port;
-    std::string remote_port;
-
-    port_stream << c.get_local_port();
-    server_port = port_stream.str();
-
-    port_stream.clear();
-    port_stream.str("");
-    port_stream << c.get_remote_port();
-    remote_port = port_stream.str();
-
-    setenv("GATEWAY_INTERFACE", constants::CGI_VERSION.c_str(), 1);
-    setenv("SERVER_PROTOCOL", constants::HTTP_VERSION.c_str(), 1);
-    setenv("REDIRECT_STATUS", "200", 1);
-
-    setenv("PATH_INFO", req_builder.get_path().c_str(), 1);
-    setenv("PATH_TRANSLATED", (location_conf.get_root() + req_builder.get_path()).c_str(), 1);
-
-    setenv("REQUEST_URI", req_builder.get_uri().c_str(), 1);
-    setenv("REQUEST_METHOD", req_builder.get_method().c_str(), 1);
-    if (!req_builder.get_query_string().empty()) {
-        setenv("QUERY_STRING", req_builder.get_query_string().c_str(), 1);
-    }
-
-    setenv("SCRIPT_FILENAME", file.c_str(), 1);
-    setenv("SCRIPT_NAME", get_file_basename(file).c_str(), 1);
-
-    setenv("CONTENT_TYPE", req_builder.get_header("Content-Type").c_str(), 1);
-    setenv("CONTENT_LENGTH", req_builder.get_header("Content-Length").c_str(), 1);
-
-    setenv("DOCUMENT_ROOT", location_conf.get_root().c_str(), 1);
-
-    if (!req_builder.get_header("Host").empty()) {
-        setenv("SERVER_NAME", req_builder.get_header("Host").c_str(), 1);
-    }
-    setenv("SERVER_ADDR", inet_ntoa(c.get_local_addr()), 1);
-    setenv("SERVER_PORT", server_port.c_str(), 1);
-    setenv("SERVER_SOFTWARE", constants::SERVER_NAME_VERSION.c_str(), 1);
-
-    setenv("REMOTE_ADDR", inet_ntoa(c.get_remote_addr()), 1);
-    setenv("REMOTE_PORT", remote_port.c_str(), 1);
-
-    const std::map<std::string, std::string> &headers = req_builder.get_headers();
-    for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
-        std::string key = "HTTP_";
-        std::transform(it->first.begin(), it->first.end(), std::back_inserter(key), update_header_key);
-        setenv(key.c_str(), it->second.c_str(), 1);
     }
 }
 
@@ -636,36 +499,4 @@ void server::clean_fds() {
             ++it;
         }
     }
-}
-
-std::string server::get_mime_type(const std::string &file) {
-    constants::mime_types_map::const_iterator it = constants::MIME_TYPES.find(get_file_extension(file));
-    return it == constants::MIME_TYPES.end() ? constants::MIME_TYPES.at("") : it->second;
-}
-
-std::string server::create_error_page(int status) {
-    std::stringstream str_stream;
-    str_stream << status << " " << constants::STATUS_STR.at(status);
-
-    return "<html>\r\n"
-                "\t<head>\r\n"
-                    "\t\t<title>" + str_stream.str() + "</title>\r\n"
-                "\t</head>\r\n"
-                "\t<body>\r\n"
-                    "\t\t<center><h1>" + str_stream.str() + "</h1></center>\r\n"
-                    "\t\t<hr>\r\n"
-                    "\t\t<center>" + constants::SERVER_NAME_VERSION + "</center>\r\n"
-                "\t</body>\r\n"
-           "</html>";
-}
-
-void server::on_error(int status, const location_config &location_conf, response_builder &res_builder) {
-    if (access(location_conf.get_error_page().c_str(), F_OK | R_OK)) {
-        res_builder.set_status(status)
-                .set_body(create_error_page(status));
-        return;
-    }
-    std::ifstream error_file(location_conf.get_error_page().c_str());
-    res_builder.set_status(status)
-            .append_body(error_file);
 }

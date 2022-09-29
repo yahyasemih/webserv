@@ -1,14 +1,14 @@
-#include "directory_listing_page_builder.hpp"
+#include "directory_index_builder.hpp"
 
-directory_listing_page_builder::directory_listing_page_builder(const std::string &directory_path,
-        const std::string &root) {
-    this->template_file_path = "src/directory_listing_page_builder/directory_listing_template.html";
+directory_index_builder::directory_index_builder(const std::string &directory_path,
+                                                 const std::string &root) {
+    this->template_file_path = "src/directory_index_builder/directory_index_template.html";
     this->directory_path = directory_path;
     this->read_file();
     this->route = this->directory_path.substr(root.size(), this->directory_path.size());
 }
 
-std::string directory_listing_page_builder::list_directory() {
+std::string directory_index_builder::list_directory() {
     DIR *directory = opendir(this->directory_path.c_str());
     if (directory == NULL) {
         return "";
@@ -44,13 +44,13 @@ std::string directory_listing_page_builder::list_directory() {
     return template_content;
 }
 
-std::string directory_listing_page_builder::get_file_last_modified_date(struct timespec &ts) {
+std::string directory_index_builder::get_file_last_modified_date(struct timespec &ts) {
     char buffer[100];
     strftime(buffer, sizeof buffer, "%D %r", gmtime(&ts.tv_sec));
     return std::string(buffer);
 }
 
-std::string directory_listing_page_builder::get_file_readable_size(off_t size) {
+std::string directory_index_builder::get_file_readable_size(off_t size) {
     std::stringstream size_string;
     const long KiB = 1024;
     const long MiB = 1049000;
@@ -67,7 +67,7 @@ std::string directory_listing_page_builder::get_file_readable_size(off_t size) {
     return size_string.str();
 }
 
-void directory_listing_page_builder::read_file() {
+void directory_index_builder::read_file() {
     std::ifstream file(this->template_file_path.c_str());
     std::string line;
 
@@ -79,7 +79,7 @@ void directory_listing_page_builder::read_file() {
     }
 }
 
-void directory_listing_page_builder::add_directory_path() {
+void directory_index_builder::add_directory_path() {
     std::string to_replace = "{directory_path}";
     size_t index = this->template_content.find(to_replace);
     if (index != std::string::npos) {
@@ -87,7 +87,7 @@ void directory_listing_page_builder::add_directory_path() {
     }
 }
 
-void directory_listing_page_builder::add_parent_directory_path() {
+void directory_index_builder::add_parent_directory_path() {
     std::string parent;
     std::string to_replace = "{parent_link}";
     if (this->route == "/")
@@ -104,8 +104,8 @@ void directory_listing_page_builder::add_parent_directory_path() {
     }
 }
 
-void directory_listing_page_builder::add_new_table_entry(const std::string &file_name, const std::string &size,
-        const std::string &date) {
+void directory_index_builder::add_new_table_entry(const std::string &file_name, const std::string &size,
+                                                  const std::string &date) {
     size_t index = this->template_content.find("<tbody id='tbody'>");
     std::string pre = this->template_content.substr(0, index + 18);
     std::string post = this->template_content.substr(index + 18, this->template_content.length());

@@ -12,10 +12,6 @@ std::vector<server_config> &http_config::get_server_configs() {
     return server_configs;
 }
 
-void http_config::set_server_configs(const std::vector<server_config> &server_configs) {
-    this->server_configs = server_configs;
-}
-
 const std::string &http_config::get_root() const {
     return root;
 }

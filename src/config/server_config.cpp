@@ -40,10 +40,6 @@ const std::vector<location_config> &server_config::get_location_configs() const 
     return location_configs;
 }
 
-void server_config::set_location_configs(const std::vector<location_config> &location_configs) {
-    this->location_configs = location_configs;
-}
-
 const std::string &server_config::get_error_page() const {
     return error_page;
 }

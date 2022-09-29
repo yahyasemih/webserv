@@ -4,7 +4,7 @@
 
 #include "logger.hpp"
 
-logger::logger(const std::string &filename) : log_file(filename.c_str(), std::ios_base::ate | std::ios_base::out) {
+logger::logger(const std::string &filename) : log_file(filename.c_str(), std::ios_base::app | std::ios_base::out) {
 }
 
 static std::string current_time() {

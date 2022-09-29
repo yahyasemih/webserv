@@ -16,9 +16,7 @@ public:
     address_port(const std::string &ip, in_port_t port);
 
     const std::string &get_ip() const;
-    void set_ip(const std::string &ip);
     in_port_t get_port() const;
-    void set_port(in_port_t port);
     std::string get_full_address() const;
 
     bool operator==(const address_port &address) const;
