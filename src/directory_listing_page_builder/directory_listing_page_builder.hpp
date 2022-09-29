@@ -10,11 +10,10 @@
 #include <fstream>
 #include <string>
 
-#include "response_builder.hpp"
 #include "constants.hpp"
+#include "response_builder.hpp"
 
-class directory_listing_page_builder
-{
+class directory_listing_page_builder {
 public:
     directory_listing_page_builder(const std::string &directory, const std::string &root);
 

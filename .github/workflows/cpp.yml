@@ -16,7 +16,7 @@ jobs:
       uses: actions/checkout@v2.0.0
     - name: Symbolic link to g++-11
       run: ln -s /usr/local/bin/g++-11 /usr/local/bin/g++
-    - name: Symbolic link to g++-11
+    - name: Symbolic link to c++-11
       run: ln -s /usr/local/bin/c++-11 /usr/local/bin/c++
     - name: Build project
       run: make
