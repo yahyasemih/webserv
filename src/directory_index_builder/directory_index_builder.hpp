@@ -1,5 +1,5 @@
-#ifndef WEBSERV_DIRECTORY_LISTING_PAGE_BUILDER_H
-#define WEBSERV_DIRECTORY_LISTING_PAGE_BUILDER_H
+#ifndef WEBSERV_DIRECTORY_INDEX_BUILDER_HPP
+#define WEBSERV_DIRECTORY_INDEX_BUILDER_HPP
 
 #include <dirent.h>
 #include <sys/stat.h>
@@ -13,14 +13,15 @@
 #include "constants.hpp"
 #include "response_builder.hpp"
 
-class directory_listing_page_builder {
+class directory_index_builder {
 public:
-    directory_listing_page_builder(const std::string &directory, const std::string &root);
+    directory_index_builder(const std::string &directory, const std::string &root);
 
     void add_directory_path();
     void add_new_table_entry(const std::string &file_name, const std::string &size, const std::string &date);
     void add_parent_directory_path();
     std::string list_directory();
+
     static std::string get_file_last_modified_date(struct timespec &ts);
     static std::string get_file_readable_size(off_t size);
 
@@ -33,4 +34,4 @@ private:
     std::string template_content;
 };
 
-#endif //WEBSERV_DIRECTORY_LISTING_PAGE_BUILDER_H
+#endif //WEBSERV_DIRECTORY_INDEX_BUILDER_HPP

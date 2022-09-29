@@ -17,16 +17,8 @@ const std::string &address_port::get_ip() const {
     return this->ip;
 }
 
-void address_port::set_ip(const std::string &ip) {
-    this->ip = ip;
-}
-
 in_port_t address_port::get_port() const {
     return this->port;
-}
-
-void address_port::set_port(in_port_t port) {
-    this->port = port;
 }
 
 bool address_port::operator==(const address_port &address) const {

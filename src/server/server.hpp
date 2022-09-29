@@ -24,9 +24,10 @@
 #include "config.hpp"
 #include "config_parser.hpp"
 #include "constants.hpp"
+#include "directory_index_builder.hpp"
 #include "logger.hpp"
 #include "response_builder.hpp"
-#include "directory_listing_page_builder.hpp"
+#include "utilities.hpp"
 
 class server {
 public:
@@ -41,6 +42,7 @@ private:
     std::vector<pollfd> poll_fds;
     bool is_running;
 
+    void create_sockets();
     void accept_connection(pollfd &pf);
     void handle_request(pollfd &pf);
     void serve_response(pollfd &pf);
@@ -56,15 +58,6 @@ private:
             const server_config &server_conf, const location_config &location_conf, const client &c);
     static void handle_put_delete(request_builder &req_builder, response_builder &res_builder, std::string &file,
             const location_config &location_conf);
-    static std::string get_mime_type(const std::string &file);
-    static std::string get_file_extension(const std::string &file);
-    static std::string get_file_basename(const std::string &file);
-    static std::string get_valid_path(const std::string &root, std::string path);
-    static std::string create_error_page(int status);
-    static void on_error(int status, const location_config &location_conf, response_builder &res_builder);
-    static void truncate_body(request_builder &req_builder, response_builder &res_builder, std::ifstream &f);
-    static void set_environment_variables(request_builder &req_builder, const std::string &file,
-            const location_config &location_conf, const client &c);
 };
 
 #endif //WEBSERV_SERVER_HPP

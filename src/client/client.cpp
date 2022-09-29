@@ -47,7 +47,12 @@ ssize_t client::receive() {
     req_builder.append_body(buffer, res);
     if (is_chunked) {
         // TODO: handle chunked request
-        throw std::runtime_error("not implemented");
+        // Temporary to test with tester
+        if ((req_builder.get_body().size() >= 7 && strnstr(req_builder.get_body().data(), "\r\n0\r\n\r\n", req_builder.get_body().size()))
+                || (req_builder.get_body().size() >= 5
+                        && strnstr(req_builder.get_body().data(), "0\r\n\r\n", req_builder.get_body().size()) == req_builder.get_body().data())) {
+            body_completed = true;
+        }
     } else {
         size_t body_length = std::strtoul(req_builder.get_header("Content-Length").c_str(), NULL, 10);
         if (req_builder.get_body().size() == body_length) {
