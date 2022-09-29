@@ -40,6 +40,7 @@ std::string directory_listing_page_builder::list_directory() {
         // Add file information to page.
         add_new_table_entry(dirent_struct->d_name, size, get_file_last_modified_date(file_stat.st_mtimespec));
     }
+    closedir(directory);
     return template_content;
 }
 
@@ -67,10 +68,9 @@ std::string directory_listing_page_builder::get_file_readable_size(off_t size) {
 }
 
 void directory_listing_page_builder::read_file() {
-    std::ifstream file;
+    std::ifstream file(this->template_file_path.c_str());
     std::string line;
 
-    file.open(this->template_file_path.c_str());
     while (std::getline(file, line)) {
         this->template_content += line;
         if (file.good()) {
@@ -82,7 +82,9 @@ void directory_listing_page_builder::read_file() {
 void directory_listing_page_builder::add_directory_path() {
     std::string to_replace = "{directory_path}";
     size_t index = this->template_content.find(to_replace);
-    this->template_content.replace(index, to_replace.size(), this->directory_path);
+    if (index != std::string::npos) {
+        this->template_content.replace(index, to_replace.size(), this->directory_path);
+    }
 }
 
 void directory_listing_page_builder::add_parent_directory_path() {
@@ -97,7 +99,9 @@ void directory_listing_page_builder::add_parent_directory_path() {
         parent = tmp.substr(0, tmp.rfind('/') + 1);
     }
     size_t index = this->template_content.find(to_replace);
-    this->template_content.replace(index, to_replace.size(), parent);
+    if (index != std::string::npos) {
+        this->template_content.replace(index, to_replace.size(), parent);
+    }
 }
 
 void directory_listing_page_builder::add_new_table_entry(const std::string &file_name, const std::string &size,
