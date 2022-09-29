@@ -58,12 +58,16 @@ request_builder &request_builder::append_body(const char *buffer, size_t size) {
     return *this;
 }
 
-const std::map<std::string, std::string> &request_builder::get_headers() {
+const std::map<std::string, std::string> &request_builder::get_headers() const {
     return headers;
 }
 
 std::string &request_builder::get_header(const std::string &key) {
     return headers[key];
+}
+
+const std::string &request_builder::get_header(const std::string &key) const {
+    return headers.at(key);
 }
 
 request_builder &request_builder::set_header(const std::string &key, const std::string &value) {

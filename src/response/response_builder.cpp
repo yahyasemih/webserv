@@ -7,7 +7,11 @@
 response_builder::response_builder() : status(200), body_size(0) {
 }
 
-response_builder &response_builder::set_status(in_port_t status) {
+int response_builder::get_status() const {
+    return status;
+}
+
+response_builder &response_builder::set_status(int status) {
     this->status = status;
     return *this;
 }
@@ -15,6 +19,10 @@ response_builder &response_builder::set_status(in_port_t status) {
 response_builder &response_builder::set_header(const std::string &key, const std::string &value) {
     headers.insert(std::make_pair(key, value));
     return *this;
+}
+
+const std::string &response_builder::get_body() const {
+    return body;
 }
 
 response_builder &response_builder::set_body(const std::string &body) {

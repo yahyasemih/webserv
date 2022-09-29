@@ -3,13 +3,14 @@ CXX = c++
 CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -g
 SRCS = src/main.cpp \
 	src/client/client.cpp \
+	src/config/address_port.cpp \
 	src/config/config_parser.cpp \
 	src/config/config.cpp \
 	src/config/http_config.cpp \
 	src/config/location_config.cpp \
 	src/config/server_config.cpp \
-	src/config/address_port.cpp \
 	src/constants/constants.cpp \
+	src/logger/logger.cpp \
 	src/request/request_builder.cpp \
 	src/response/response_builder.cpp \
 	src/server/server.cpp \
@@ -18,6 +19,7 @@ SRCS = src/main.cpp \
 INC = -Isrc/client \
 	-Isrc/constants \
 	-Isrc/config \
+	-Isrc/logger \
 	-Isrc/request \
 	-Isrc/response \
 	-Isrc/server \

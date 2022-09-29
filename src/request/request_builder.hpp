@@ -24,7 +24,8 @@ public:
     std::vector<char> &get_body();
     request_builder &append_body(const char *buffer, size_t size);
     std::string &get_header(const std::string &key);
-    const std::map<std::string, std::string> &get_headers();
+    const std::string &get_header(const std::string &key) const;
+    const std::map<std::string, std::string> &get_headers() const;
     request_builder &set_header(const std::string &key, const std::string &value);
 
     void reset();

@@ -96,7 +96,25 @@ bool config_parser::parse_config() {
             while (line_stream >> arg) {
                 args.push_back(arg);
             }
-            scope_to_instructions.at(scope.top()).rbegin()->push_back(args);
+            if (args.empty()) {
+                continue;
+            }
+            if (scope.top() == "main") {
+                if (args.at(0) == "error_log") {
+                    if (args.size() != 2) {
+                        error_message = "Invalid number of args for 'error_log'";
+                        error_line = line_nbr;
+                        return false;
+                    }
+                    conf.set_error_log(args.at(1));
+                } else {
+                    error_message = "Invalid field '" + args.at(0) + "'";
+                    error_line = line_nbr;
+                    return false;
+                }
+            } else {
+                scope_to_instructions.at(scope.top()).rbegin()->push_back(args);
+            }
         } else if (*line.rbegin() == '{') { // new scope
             std::string new_scope;
             std::stringstream scope_stream(line.erase(line.size() - 1));
