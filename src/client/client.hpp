@@ -12,6 +12,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <ctime>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -33,6 +34,9 @@ public:
     in_port_t get_local_port() const;
     in_addr get_remote_addr() const;
     in_port_t get_remote_port() const;
+    std::time_t get_last_request_ts() const;
+    void reset_last_request_ts();
+
 private:
     char buffer[constants::BUFFER_SIZE + 1];
     int fd;
@@ -41,6 +45,7 @@ private:
     request_builder req_builder;
     std::string response;
     std::stringstream content;
+    std::time_t last_request_ts;
     bool header_completed;
     bool body_completed;
     bool is_chunked;

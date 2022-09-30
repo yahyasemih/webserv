@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "constants.hpp"
+
 class request_builder {
 public:
     const std::string &get_method() const;
@@ -28,6 +30,7 @@ public:
     const std::map<std::string, std::string> &get_headers() const;
     request_builder &set_header(const std::string &key, const std::string &value);
 
+    bool is_bad_request() const;
     void reset();
 private:
     std::string method;
@@ -38,6 +41,5 @@ private:
     std::vector<char> body;
     std::map<std::string, std::string> headers;
 };
-
 
 #endif //WEBSERV_REQUEST_BUILDER_HPP
