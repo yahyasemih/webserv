@@ -136,13 +136,13 @@ std::string utilities::create_error_page(int status) {
            "</html>";
 }
 
-void utilities::on_error(int status, const location_config &location_conf, response_builder &res_builder) {
-    if (access(location_conf.get_error_page().c_str(), F_OK | R_OK)) {
+void utilities::on_error(int status, const std::string &error_page, response_builder &res_builder) {
+    if (access(error_page.c_str(), F_OK | R_OK)) {
         res_builder.set_status(status)
                 .set_body(create_error_page(status));
         return;
     }
-    std::ifstream error_file(location_conf.get_error_page().c_str());
+    std::ifstream error_file(error_page.c_str());
     res_builder.set_status(status)
             .append_body(error_file);
 }

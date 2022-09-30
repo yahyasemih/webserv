@@ -24,7 +24,7 @@ public:
     static std::string get_file_basename(const std::string &file);
     static std::string get_valid_path(const std::string &root, std::string path);
     static std::string create_error_page(int status);
-    static void on_error(int status, const location_config &location_conf, response_builder &res_builder);
+    static void on_error(int status, const std::string &error_page, response_builder &res_builder);
     static void truncate_body(request_builder &req_builder, response_builder &res_builder, std::ifstream &f);
     static void set_environment_variables(request_builder &req_builder, const std::string &file,
             const location_config &location_conf, const client &c);

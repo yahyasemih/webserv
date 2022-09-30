@@ -122,21 +122,41 @@ void server::start() {
                     if (pf.revents & POLLRDNORM) {
                         accept_connection(pf);
                     } else if (pf.revents & POLLHUP) {
-                        std::cout << "connection to fd " << pf.fd << " closed" << std::endl;
-                        clients.erase(pf.fd);
-                        close(pf.fd);
-                        pf.fd = -1;
+                        clean_single_fd(pf);
                     } else if (pf.revents & POLLIN) {
                         handle_request(pf);
                     } else if (pf.revents & POLLOUT) {
                         serve_response(pf);
                     }
                 }
-                clean_fds();
             }
+            check_idle_clients();
+            clean_fds();
         } catch (const std::exception &e) {
             error_logger.error("Exception: " + std::string(e.what() ? e.what() : ""));
             stop();
+        }
+    }
+}
+
+void server::clean_single_fd(pollfd &pf) {
+    clients.erase(pf.fd);
+    close(pf.fd);
+    std::cout << "connection to fd " << pf.fd << " closed" << std::endl;
+    pf.fd = -1;
+}
+
+void server::check_idle_clients() {
+    std::time_t current_time = time(NULL);
+
+    for (size_t index = 0; index < poll_fds.size(); ++index) {
+        pollfd &pf = poll_fds.at(index);
+        std::map<int, client>::iterator it = clients.find(pf.fd);
+
+        if (it != clients.end()) {
+            if (current_time - it->second.get_last_request_ts() > constants::CLIENT_TIMEOUT_SEC) {
+                clean_single_fd(pf);
+            }
         }
     }
 }
@@ -197,6 +217,7 @@ const location_config &server::get_matching_location(const request_builder &req_
 void server::handle_request(pollfd &pf) {
     logger error_logger(conf.get_error_log());
     client &c = clients.at(pf.fd);
+    c.reset_last_request_ts();
     ssize_t res = c.receive();
 
     if (res <= 0) {
@@ -207,9 +228,7 @@ void server::handle_request(pollfd &pf) {
             error_msg << "client with fd " << pf.fd;
             error_msg << " closed its half side of the connection";
         }
-        clients.erase(pf.fd);
-        close(pf.fd);
-        pf.fd = -1;
+        clean_single_fd(pf);
         error_logger.error(error_msg.str());
         return;
     }
@@ -219,10 +238,21 @@ void server::handle_request(pollfd &pf) {
     }
 
     request_builder req_builder(c.get_request());
+    response_builder res_builder;
+    std::string &response = c.get_response();
+
+    if (req_builder.is_bad_request()) {
+        utilities::on_error(400, conf.get_http_conf().get_error_page(), res_builder);
+        response = res_builder.build();
+        pf.events = POLLOUT; // client ready to serve response, listening again to write events
+        return;
+    }
+
     std::string ip = inet_ntoa(c.get_local_addr());
     std::string hostname;
     in_port_t port = c.get_local_port();
     std::string &header_host = req_builder.get_header("address_port");
+
     if (!header_host.empty()) {
         size_t column_idx = header_host.find(':');
         if (column_idx == std::string::npos) {
@@ -234,7 +264,6 @@ void server::handle_request(pollfd &pf) {
         hostname = ip;
     }
 
-    response_builder res_builder;
     std::string file;
     const server_config &server_conf = get_matching_server(ip, hostname, port);
     const location_config &location_conf = get_matching_location(req_builder, server_conf);
@@ -242,7 +271,6 @@ void server::handle_request(pollfd &pf) {
 
     file = utilities::get_valid_path(location_conf.get_root(),
             req_builder.get_path().c_str() + location_conf.get_route().size() - 1);
-    std::string &response = c.get_response();
     size_t body_limit = location_conf.get_client_max_body_size();
     const std::set<std::string> &accepted_methods = location_conf.get_accepted_methods();
     bool redirect = !location_conf.get_redirect().empty() && location_conf.get_redirect() != "no";
@@ -260,9 +288,9 @@ void server::handle_request(pollfd &pf) {
             res_builder.set_header("Set-Cookie", req_builder.get_header("Set-Cookie"));
         }
     } else if (accepted_methods.find(req_builder.get_method()) == accepted_methods.end()) {
-        utilities::on_error(405, location_conf, res_builder);
+        utilities::on_error(405, location_conf.get_error_page(), res_builder);
     } else if (body_limit > 0 && body_limit < req_builder.get_body().size()) {
-        utilities::on_error(413, location_conf, res_builder);
+        utilities::on_error(413, location_conf.get_error_page(), res_builder);
     } else {
         process_request(req_builder, res_builder, file, server_conf, location_conf, c);
     }
@@ -281,14 +309,14 @@ void server::serve_response(pollfd &pf) {
         pf.events = POLLIN; // client has no more response to send, listening to read events only
         return;
     }
+
+    c.reset_last_request_ts();
     ssize_t res = send(pf.fd, response.c_str(), response.size(), 0);
     if (res < 0) {
         logger error_logger(conf.get_error_log());
         std::ostringstream error_msg;
         error_msg << "error occurred, dropping connection with fd " << pf.fd;
-        clients.erase(pf.fd);
-        close(pf.fd);
-        pf.fd = -1;
+        clean_single_fd(pf);
         error_logger.error(error_msg.str());
         return;
     }
@@ -305,7 +333,7 @@ void server::handle_put_delete(request_builder &req_builder, response_builder &r
             new_file = file;
         }
         if (!access(new_file.c_str(), F_OK)) {
-            utilities::on_error(409, location_conf, res_builder);
+            utilities::on_error(409, location_conf.get_error_page(), res_builder);
             return;
         }
         std::ofstream put_file(new_file.c_str(), std::ios_base::binary);
@@ -314,15 +342,15 @@ void server::handle_put_delete(request_builder &req_builder, response_builder &r
                 .set_header("Content-Location", utilities::get_file_basename(file));
     } else if (req_builder.get_method() == "DELETE") {
         if (access(file.c_str(), F_OK)) {
-            utilities::on_error(404, location_conf, res_builder);
+            utilities::on_error(404, location_conf.get_error_page(), res_builder);
             return;
         }
         if (!req_builder.get_body().empty()) {
-            utilities::on_error(415, location_conf, res_builder);
+            utilities::on_error(415, location_conf.get_error_page(), res_builder);
             return;
         }
         if (remove(file.c_str())) {
-            utilities::on_error(409, location_conf, res_builder);
+            utilities::on_error(409, location_conf.get_error_page(), res_builder);
             return;
         }
         res_builder.set_status(204);
@@ -340,11 +368,11 @@ void server::process_request(request_builder &req_builder, response_builder &res
     int ret = stat(file.c_str(), &s);
 
     if (ret != 0) {
-        utilities::on_error(404, location_conf, res_builder);
+        utilities::on_error(404, location_conf.get_error_page(), res_builder);
         return;
     }
     if (access(file.c_str(), R_OK)) {
-        utilities::on_error(403, location_conf, res_builder);
+        utilities::on_error(403, location_conf.get_error_page(), res_builder);
         return;
     }
     if (s.st_mode & S_IFDIR) {
@@ -367,7 +395,7 @@ void server::process_request(request_builder &req_builder, response_builder &res
                         .set_body(index_page.list_directory());
                 return;
             } else {
-                utilities::on_error(404, location_conf, res_builder); // Should be 403 but 42 tester want 404
+                utilities::on_error(403, location_conf.get_error_page(), res_builder);
                 return;
             }
         } else {
@@ -384,11 +412,11 @@ void server::process_request(request_builder &req_builder, response_builder &res
 void server::run_static(request_builder &req_builder, response_builder &res_builder, const std::string &file,
         const location_config &location_conf) {
     if (access(file.c_str(), F_OK)) {
-        utilities::on_error(404, location_conf, res_builder);
+        utilities::on_error(404, location_conf.get_error_page(), res_builder);
         return;
     }
     if (access(file.c_str(), R_OK)) {
-        utilities::on_error(403, location_conf, res_builder);
+        utilities::on_error(403, location_conf.get_error_page(), res_builder);
         return;
     }
     std::ifstream f(file.c_str());

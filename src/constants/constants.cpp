@@ -189,10 +189,25 @@ static std::set<std::string> init_valid_scopes() {
     return valid_scopes;
 }
 
+static std::set<std::string> init_valid_methods() {
+    std::set<std::string> valid_methods;
+
+    valid_methods.insert("GET");
+    valid_methods.insert("POST");
+    valid_methods.insert("DELETE");
+    valid_methods.insert("PUT");
+
+    return valid_methods;
+}
+
 const constants::status_map constants::STATUS_STR = init_status_map();
 
 const constants::mime_types_map constants::MIME_TYPES = init_mime_types();
 
 const std::set<std::string> constants::VALID_SCOPES = init_valid_scopes();
 
+const std::set<std::string> constants::VALID_METHODS = init_valid_methods();
+
 const size_t constants::BUFFER_SIZE;
+
+const std::time_t constants::CLIENT_TIMEOUT_SEC;

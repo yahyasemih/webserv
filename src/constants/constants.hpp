@@ -7,6 +7,7 @@
 
 #include <sys/types.h>
 
+#include <ctime>
 #include <map>
 #include <set>
 #include <string>
@@ -22,7 +23,9 @@ public:
     static status_map STATUS_STR;
     static mime_types_map MIME_TYPES;
     static const std::set<std::string> VALID_SCOPES;
+    static const std::set<std::string> VALID_METHODS;
     static const size_t BUFFER_SIZE = 256 * 1024; // 256 KB buffer
+    static const std::time_t CLIENT_TIMEOUT_SEC = 60;
 };
 
 #endif //WEBSERV_CONSTANTS_HPP
