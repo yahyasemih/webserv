@@ -183,3 +183,29 @@ void utilities::truncate_body(request_builder &req_builder, response_builder &re
             .set_header("Content-Range", range_stream.str());
     res_builder.truncate_body(first_byte, last_byte);
 }
+
+bool utilities::is_valid_client_max_body_size(const std::string &client_max_body_size_str) {
+    for (size_t i = 0; i < client_max_body_size_str.size() - 1; ++i) {
+        if (!isdigit(client_max_body_size_str[i])) {
+            return false;
+        }
+    }
+    std::string valid_units("bkmgBKMG");
+    return valid_units.find(*client_max_body_size_str.rbegin()) != std::string::npos;
+}
+
+size_t utilities::translate_client_max_body_size(const std::string &client_max_body_size_str) {
+    std::map<char, size_t> multiplier;
+
+    multiplier.insert(std::make_pair('b', 1));
+    multiplier.insert(std::make_pair('B', 1));
+    multiplier.insert(std::make_pair('k', 1024));
+    multiplier.insert(std::make_pair('K', 1024));
+    multiplier.insert(std::make_pair('m', 1024 * 1024));
+    multiplier.insert(std::make_pair('M', 1024 * 1024));
+    multiplier.insert(std::make_pair('g', 1024 * 1024 * 1024));
+    multiplier.insert(std::make_pair('G', 1024 * 1024 * 1024));
+
+    size_t size = strtoull(client_max_body_size_str.c_str(), NULL, 10);
+    return size * multiplier[*client_max_body_size_str.rbegin()];
+}

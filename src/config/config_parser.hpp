@@ -18,6 +18,7 @@
 
 #include "config.hpp"
 #include "constants.hpp"
+#include "utilities.hpp"
 
 class config_parser {
 public:
@@ -32,8 +33,12 @@ public:
     size_t get_error_line() const;
     bool is_valid() const;
     config &get_result();
+
 private:
     bool parse_config();
+    bool parse_http_config(size_t line_nbr);
+    bool parse_server_config(size_t line_nbr);
+    bool parse_location_config(size_t line_nbr);
     void propagate();
     std::string get_absolute_path(const std::string &path) const;
 
@@ -43,6 +48,5 @@ private:
     std::string error_message;
     size_t error_line;
 };
-
 
 #endif //WEBSERV_CONFIG_PARSER_HPP
