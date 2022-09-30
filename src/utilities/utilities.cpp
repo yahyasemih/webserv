@@ -4,7 +4,7 @@
 
 #include "utilities.hpp"
 
-static bool ends_with(const std::string &value, const std::string &ending) {
+bool utilities::ends_with(const std::string &value, const std::string &ending) {
     if (ending.size() > value.size()) {
         return false;
     }
@@ -208,4 +208,53 @@ size_t utilities::translate_client_max_body_size(const std::string &client_max_b
 
     size_t size = strtoull(client_max_body_size_str.c_str(), NULL, 10);
     return size * multiplier[*client_max_body_size_str.rbegin()];
+}
+
+std::string utilities::get_file_last_modified_date(struct timespec &ts) {
+    char buffer[100];
+    strftime(buffer, sizeof buffer, "%D %r", gmtime(&ts.tv_sec));
+    return std::string(buffer);
+}
+
+std::string utilities::get_file_readable_size(off_t size) {
+    std::stringstream size_string;
+    const long KiB = 1024;
+    const long MiB = 1049000;
+    const long GiB = 1074000000;
+
+    if (size < KiB)
+        size_string << size << " B";
+    else if (size < MiB)
+        size_string << (size / KiB) << " KB";
+    else if (size < GiB)
+        size_string << (size / MiB) << " MB";
+    else
+        size_string << (size / GiB) << " GB";
+    return size_string.str();
+}
+
+char utilities::hex_to_char(char c1, char c2) {
+    char c;
+
+    if (isdigit(c1)) {
+        c = static_cast<char>(((c1 - '0') * 16));
+    } else {
+        c = static_cast<char>(((tolower(c1) - 'a') * 16));
+    }
+    if (isdigit(c2)) {
+        c = static_cast<char>((c + (c2 - '0')));
+    } else {
+        c = static_cast<char>((c + (tolower(c2) - 'a')));
+    }
+    return c;
+}
+
+bool utilities::is_valid_hex(char c1, char c2) {
+    if (!isalnum(c1) || tolower(c1) > 'f') {
+        return false;
+    }
+    if (!isalnum(c2) || tolower(c2) > 'f') {
+        return false;
+    }
+    return true;
 }

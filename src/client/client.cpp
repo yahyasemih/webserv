@@ -100,38 +100,12 @@ in_port_t client::get_remote_port() const {
     return ntohs(remote_addr.sin_port);
 }
 
-static char hex_to_char(char c1, char c2) {
-    char c;
-
-    if (isdigit(c1)) {
-        c = static_cast<char>(((c1 - '0') * 16));
-    } else {
-        c = static_cast<char>(((tolower(c1) - 'a') * 16));
-    }
-    if (isdigit(c2)) {
-        c = static_cast<char>((c + (c2 - '0')));
-    } else {
-        c = static_cast<char>((c + (tolower(c2) - 'a')));
-    }
-    return c;
-}
-
-static bool is_valid_hex(char c1, char c2) {
-    if (!isalnum(c1) || tolower(c1) > 'f') {
-        return false;
-    }
-    if (!isalnum(c2) || tolower(c2) > 'f') {
-        return false;
-    }
-    return true;
-}
-
 std::string url_decode(const std::string &url) {
     std::string decoded_url;
 
     for (size_t i = 0; i < url.size(); i++) {
-        if (url[i] == '%' && url.size() - i > 2 && is_valid_hex(url[i + 1], url[i + 2])) {
-            decoded_url += hex_to_char(url[i + 1], url[i + 2]);
+        if (url[i] == '%' && url.size() - i > 2 && utilities::is_valid_hex(url[i + 1], url[i + 2])) {
+            decoded_url += utilities::hex_to_char(url[i + 1], url[i + 2]);
             i += 2;
         } else if (url[i] == '+') {
             decoded_url += ' ';
