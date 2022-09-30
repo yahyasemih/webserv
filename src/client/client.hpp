@@ -20,6 +20,7 @@
 #include "constants.hpp"
 #include "request_builder.hpp"
 #include "response_builder.hpp"
+#include "utilities.hpp"
 
 class client {
 public:

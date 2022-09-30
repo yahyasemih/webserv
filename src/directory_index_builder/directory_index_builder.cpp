@@ -1,7 +1,7 @@
 #include "directory_index_builder.hpp"
 
 directory_index_builder::directory_index_builder(const std::string &directory_path,
-                                                 const std::string &root) {
+        const std::string &root) {
     this->template_file_path = "src/directory_index_builder/directory_index_template.html";
     this->directory_path = directory_path;
     this->read_file();
@@ -36,35 +36,13 @@ std::string directory_index_builder::list_directory() {
         if (file_stat.st_mode & S_IFDIR)
             size = "";
         else
-            size = get_file_readable_size(file_stat.st_size);
+            size = utilities::get_file_readable_size(file_stat.st_size);
         // Add file information to page.
-        add_new_table_entry(dirent_struct->d_name, size, get_file_last_modified_date(file_stat.st_mtimespec));
+        add_new_table_entry(dirent_struct->d_name, size,
+                utilities::get_file_last_modified_date(file_stat.st_mtimespec));
     }
     closedir(directory);
     return template_content;
-}
-
-std::string directory_index_builder::get_file_last_modified_date(struct timespec &ts) {
-    char buffer[100];
-    strftime(buffer, sizeof buffer, "%D %r", gmtime(&ts.tv_sec));
-    return std::string(buffer);
-}
-
-std::string directory_index_builder::get_file_readable_size(off_t size) {
-    std::stringstream size_string;
-    const long KiB = 1024;
-    const long MiB = 1049000;
-    const long GiB = 1074000000;
-
-    if (size < KiB)
-        size_string << size << " B";
-    else if (size < MiB)
-        size_string << (size / KiB) << " KB";
-    else if (size < GiB)
-        size_string << (size / MiB) << " MB";
-    else
-        size_string << (size / GiB) << " GB";
-    return size_string.str();
 }
 
 void directory_index_builder::read_file() {
@@ -82,8 +60,9 @@ void directory_index_builder::read_file() {
 void directory_index_builder::add_directory_path() {
     std::string to_replace = "{directory_path}";
     size_t index = this->template_content.find(to_replace);
-    if (index != std::string::npos) {
+    while (index != std::string::npos) {
         this->template_content.replace(index, to_replace.size(), this->directory_path);
+        index = this->template_content.find(to_replace);
     }
 }
 
@@ -105,10 +84,14 @@ void directory_index_builder::add_parent_directory_path() {
 }
 
 void directory_index_builder::add_new_table_entry(const std::string &file_name, const std::string &size,
-                                                  const std::string &date) {
+        const std::string &date) {
     size_t index = this->template_content.find("<tbody id='tbody'>");
+    if (index == std::string::npos || index + 18 >= this->template_content.size()) {
+        return;
+    }
     std::string pre = this->template_content.substr(0, index + 18);
     std::string post = this->template_content.substr(index + 18, this->template_content.length());
+
     pre += "\n<tr>\n"
         "<td><a href='" + this->route + file_name + "'>" + file_name + "</a></td>\n"
         "<td>" + size + "</td>\n"

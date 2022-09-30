@@ -12,6 +12,7 @@
 
 #include "constants.hpp"
 #include "response_builder.hpp"
+#include "utilities.hpp"
 
 class directory_index_builder {
 public:
@@ -21,9 +22,6 @@ public:
     void add_new_table_entry(const std::string &file_name, const std::string &size, const std::string &date);
     void add_parent_directory_path();
     std::string list_directory();
-
-    static std::string get_file_last_modified_date(struct timespec &ts);
-    static std::string get_file_readable_size(off_t size);
 
 private:
     void read_file();

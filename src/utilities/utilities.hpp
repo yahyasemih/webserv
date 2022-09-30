@@ -17,8 +17,11 @@
 #include "request_builder.hpp"
 #include "response_builder.hpp"
 
+class client;
+
 class utilities {
 public:
+    static bool ends_with(const std::string &value, const std::string &ending);
     static std::string get_mime_type(const std::string &file);
     static std::string get_file_extension(const std::string &file);
     static std::string get_file_basename(const std::string &file);
@@ -30,6 +33,10 @@ public:
             const location_config &location_conf, const client &c);
     static bool is_valid_client_max_body_size(const std::string &client_max_body_size_str);
     static size_t translate_client_max_body_size(const std::string &client_max_body_size_str);
+    static std::string get_file_last_modified_date(struct timespec &ts);
+    static std::string get_file_readable_size(off_t size);
+    static char hex_to_char(char c1, char c2);
+    static bool is_valid_hex(char c1, char c2);
 };
 
 #endif //WEBSERV_UTILITIES_HPP
