@@ -8,31 +8,6 @@ config_parser::config_parser(const std::string &config_file) : config_file(confi
         error_line(std::numeric_limits<size_t>::max()) {
 }
 
-static bool is_valid_client_max_body_size(const std::string &client_max_body_size_str) {
-    for (size_t i = 0; i < client_max_body_size_str.size() - 1; ++i) {
-        if (!isdigit(client_max_body_size_str[i])) {
-            return false;
-        }
-    }
-    std::string valid_units("bkmgBKMG");
-    return valid_units.find(*client_max_body_size_str.rbegin()) != std::string::npos;
-}
-
-static size_t translate_client_max_body_size(const std::string &client_max_body_size_str) {
-    std::map<char, size_t> multiplier;
-    multiplier.insert(std::make_pair('b', 1));
-    multiplier.insert(std::make_pair('B', 1));
-    multiplier.insert(std::make_pair('k', 1024));
-    multiplier.insert(std::make_pair('K', 1024));
-    multiplier.insert(std::make_pair('m', 1024 * 1024));
-    multiplier.insert(std::make_pair('M', 1024 * 1024));
-    multiplier.insert(std::make_pair('g', 1024 * 1024 * 1024));
-    multiplier.insert(std::make_pair('G', 1024 * 1024 * 1024));
-
-    size_t size = strtoull(client_max_body_size_str.c_str(), NULL, 10);
-    return size * multiplier[*client_max_body_size_str.rbegin()];
-}
-
 std::string config_parser::get_absolute_path(const std::string &path) const {
     // TODO: Optimize code and usage of this one
     if (path[0] == '/') {
@@ -148,7 +123,13 @@ bool config_parser::parse_config() {
                 scope_to_instructions.insert(std::make_pair(scope.top(), scope_list_t()));
             }
             scope_to_instructions.at(scope.top()).push_back(instruction_list_t());
-            if (new_scope == "server") {
+            if (new_scope == "http") {
+                if (scope_to_instructions.at("http").size() > 1) {
+                    error_message = "Multiple 'http' sections";
+                    error_line = line_nbr;
+                    return false;
+                }
+            } else if (new_scope == "server") {
                 conf.get_http_conf().get_server_configs().push_back(server_config());
             } else if (new_scope == "location") {
                 conf.get_http_conf().get_server_configs().rbegin()->get_location_configs().push_back(location_config());
@@ -160,239 +141,16 @@ bool config_parser::parse_config() {
                 return false;
             }
             if (scope.top() == "http") {
-                if (scope_to_instructions.at("http").size() > 1) {
-                    error_message = "Multiple 'http' sections";
-                    error_line = line_nbr;
+                if (!parse_http_config(line_nbr)) {
                     return false;
                 }
-                
-                http_config &http_conf = conf.get_http_conf();
-                const instruction_list_t &http_instruction_list = scope_to_instructions.at("http").at(0);
-
-                for (size_t i = 0 ; i < http_instruction_list.size(); ++i) {
-                    if (http_instruction_list.at(i).at(0) == "root") {
-                        if (http_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'root'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        http_conf.set_root(http_instruction_list.at(i).at(1));
-                    } else if (http_instruction_list.at(i).at(0) == "error_page") {
-                        if (http_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'error_page'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        http_conf.set_error_page(http_instruction_list.at(i).at(1));
-                    } else if (http_instruction_list.at(i).at(0) == "error_log") {
-                        if (http_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'error_log'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        http_conf.set_error_log(http_instruction_list.at(i).at(1));
-                    } else if (http_instruction_list.at(i).at(0) == "access_log") {
-                        if (http_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'access_log'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        http_conf.set_access_log(http_instruction_list.at(i).at(1));
-                    } else if (http_instruction_list.at(i).at(0) == "client_max_body_size") {
-                        if (http_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'client_max_body_size'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        const std::string &arg = http_instruction_list.at(i).at(1);
-                        if (!is_valid_client_max_body_size(arg)) {
-                            error_message = "Invalid argument for 'client_max_body_size' : " + arg;
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        size_t size = translate_client_max_body_size(arg);
-                        http_conf.set_client_max_body_size(size);
-                    } else if (http_instruction_list.at(i).at(0) == "index") {
-                        std::vector<std::string> indexes(http_instruction_list.at(i).begin() + 1,
-                                                         http_instruction_list.at(i).end());
-                        http_conf.set_indexes(indexes);
-                    } else {
-                        error_message = "Invalid field '" + http_instruction_list.at(i).at(0) + "'";
-                        error_line = line_nbr;
-                        return false;
-                    }
-                }
             } else if (scope.top() == "server") {
-                server_config &server_conf = *conf.get_http_conf().get_server_configs().rbegin();
-                const instruction_list_t &server_instruction_list = *scope_to_instructions.at("server").rbegin();
-
-                for (size_t i = 0 ; i < server_instruction_list.size(); ++i) {
-                    if (server_instruction_list.at(i).at(0) == "listen") {
-                        if (server_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'listen'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        const std::string &ip_port = server_instruction_list.at(i).at(1);
-                        std::string ip;
-                        in_port_t port;
-                        std::stringstream port_stream;
-                        size_t idx = ip_port.find(':');
-                        if (idx != std::string::npos) {
-                            ip = ip_port.substr(0, idx);
-                            port_stream.str(ip_port.substr(idx + 1));
-                        } else {
-                            ip = "0.0.0.0";
-                            port_stream.str(ip_port);
-                        }
-                        port_stream >> port;
-
-                        server_conf.add_address(ip, port);
-                    } else if (server_instruction_list.at(i).at(0) == "root") {
-                        if (server_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'root'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        server_conf.set_root(server_instruction_list.at(i).at(1));
-                    } else if (server_instruction_list.at(i).at(0) == "server_names") {
-                        server_conf.set_server_names(std::set<std::string>(
-                                server_instruction_list.at(i).begin() + 1,
-                                server_instruction_list.at(i).end()));
-                    } else if (server_instruction_list.at(i).at(0) == "error_page") {
-                        if (server_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'error_page'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        server_conf.set_error_page(server_instruction_list.at(i).at(1));
-                    } else if (server_instruction_list.at(i).at(0) == "access_log") {
-                        if (server_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'access_log'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        server_conf.set_access_log(server_instruction_list.at(i).at(1));
-                    } else if (server_instruction_list.at(i).at(0) == "error_log") {
-                        if (server_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'error_log'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        server_conf.set_error_log(server_instruction_list.at(i).at(1));
-                    } else if (server_instruction_list.at(i).at(0) == "client_max_body_size") {
-                        if (server_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'client_max_body_size'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        const std::string &arg = server_instruction_list.at(i).at(1);
-                        if (!is_valid_client_max_body_size(arg)) {
-                            error_message = "Invalid argument for 'client_max_body_size' : " + arg;
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        size_t size = translate_client_max_body_size(arg);
-                        server_conf.set_client_max_body_size(size);
-                    } else if (server_instruction_list.at(i).at(0) == "index") {
-                        std::vector<std::string> indexes(server_instruction_list.at(i).begin() + 1,
-                                                         server_instruction_list.at(i).end());
-                        server_conf.set_indexes(indexes);
-                    } else if (server_instruction_list.at(i).at(0) == "cgi_path") {
-                        if (server_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'cgi_path'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        server_conf.set_cgi_path(server_instruction_list.at(i).at(1));
-                    } else if (server_instruction_list.at(i).at(0) == "cgi_extension") {
-                        if (server_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'cgi_extension'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        server_conf.set_cgi_extension(server_instruction_list.at(i).at(1));
-                    } else {
-                        error_message = "Invalid field '" + server_instruction_list.at(i).at(0) + "'";
-                        error_line = line_nbr;
-                        return false;
-                    }
+                if (!parse_server_config(line_nbr)) {
+                    return false;
                 }
             } else if (scope.top() == "location") {
-                location_config &location_conf = *conf.get_http_conf().get_server_configs().rbegin()->get_location_configs().rbegin();
-                const instruction_list_t &location_instruction_list = *scope_to_instructions.at("location").rbegin();
-
-                for (size_t i = 0; i < location_instruction_list.size(); ++i) {
-                    if (location_instruction_list.at(i).at(0) == "route") {
-                        if (location_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'route'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        location_conf.set_route(location_instruction_list.at(i).at(1));
-                    } else if (location_instruction_list.at(i).at(0) == "root") {
-                        if (location_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'root'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        location_conf.set_root(location_instruction_list.at(i).at(1));
-                    } else if (location_instruction_list.at(i).at(0) == "error_page") {
-                        if (location_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'error_page'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        location_conf.set_error_page(location_instruction_list.at(i).at(1));
-                    } else if (location_instruction_list.at(i).at(0) == "client_max_body_size") {
-                        if (location_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'client_max_body_size'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        const std::string &arg = location_instruction_list.at(i).at(1);
-                        if (!is_valid_client_max_body_size(arg)) {
-                            error_message = "Invalid argument for 'client_max_body_size' : " + arg;
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        size_t size = translate_client_max_body_size(arg);
-                        location_conf.set_client_max_body_size(size);
-                    } else if (location_instruction_list.at(i).at(0) == "index") {
-                        std::vector<std::string> indexes(location_instruction_list.at(i).begin() + 1,
-                                                         location_instruction_list.at(i).end());
-                        location_conf.set_indexes(indexes);
-                    } else if (location_instruction_list.at(i).at(0) == "accept") {
-                        std::set<std::string> accepted_methods(
-                                location_instruction_list.at(i).begin() + 1,
-                                location_instruction_list.at(i).end());
-                        location_conf.set_accepted_methods(accepted_methods);
-                    } else if (location_instruction_list.at(i).at(0) == "redirect") {
-                        if (location_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'redirect'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        location_conf.set_redirect(location_instruction_list.at(i).at(1));
-                    } else if (location_instruction_list.at(i).at(0) == "list_directory") {
-                        if (location_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'list_directory'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        location_conf.set_list_directory(location_instruction_list.at(i).at(1) == "on");
-                    } else if (location_instruction_list.at(i).at(0) == "upload_dir") {
-                        if (location_instruction_list.at(i).size() != 2) {
-                            error_message = "Invalid number of args for 'upload_dir'";
-                            error_line = line_nbr;
-                            return false;
-                        }
-                        location_conf.set_upload_dir(location_instruction_list.at(i).at(1));
-                    } else {
-                        error_message = "Invalid field '" + location_instruction_list.at(i).at(0) + "'";
-                        error_line = line_nbr;
-                        return false;
-                    }
+                if (!parse_location_config(line_nbr)) {
+                    return false;
                 }
             }
             scope.pop();
@@ -423,18 +181,259 @@ bool config_parser::parse_config() {
     return true;
 }
 
+bool config_parser::parse_location_config(size_t line_nbr) {
+    location_config &location_conf = *conf.get_http_conf()
+            .get_server_configs().rbegin()->get_location_configs().rbegin();
+    const instruction_list_t &location_instruction_list = *scope_to_instructions.at("location").rbegin();
+
+    for (size_t i = 0; i < location_instruction_list.size(); ++i) {
+        if (location_instruction_list.at(i).at(0) == "route") {
+            if (location_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'route'";
+                error_line = line_nbr;
+                return false;
+            }
+            location_conf.set_route(location_instruction_list.at(i).at(1));
+        } else if (location_instruction_list.at(i).at(0) == "root") {
+            if (location_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'root'";
+                error_line = line_nbr;
+                return false;
+            }
+            location_conf.set_root(location_instruction_list.at(i).at(1));
+        } else if (location_instruction_list.at(i).at(0) == "error_page") {
+            if (location_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'error_page'";
+                error_line = line_nbr;
+                return false;
+            }
+            location_conf.set_error_page(location_instruction_list.at(i).at(1));
+        } else if (location_instruction_list.at(i).at(0) == "client_max_body_size") {
+            if (location_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'client_max_body_size'";
+                error_line = line_nbr;
+                return false;
+            }
+            const std::string &arg = location_instruction_list.at(i).at(1);
+            if (!utilities::is_valid_client_max_body_size(arg)) {
+                error_message = "Invalid argument for 'client_max_body_size' : " + arg;
+                error_line = line_nbr;
+                return false;
+            }
+            size_t size = utilities::translate_client_max_body_size(arg);
+            location_conf.set_client_max_body_size(size);
+        } else if (location_instruction_list.at(i).at(0) == "index") {
+            std::vector<std::string> indexes(location_instruction_list.at(i).begin() + 1,
+                                             location_instruction_list.at(i).end());
+            location_conf.set_indexes(indexes);
+        } else if (location_instruction_list.at(i).at(0) == "accept") {
+            std::set<std::string> accepted_methods(
+                    location_instruction_list.at(i).begin() + 1,
+                    location_instruction_list.at(i).end());
+            location_conf.set_accepted_methods(accepted_methods);
+        } else if (location_instruction_list.at(i).at(0) == "redirect") {
+            if (location_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'redirect'";
+                error_line = line_nbr;
+                return false;
+            }
+            location_conf.set_redirect(location_instruction_list.at(i).at(1));
+        } else if (location_instruction_list.at(i).at(0) == "list_directory") {
+            if (location_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'list_directory'";
+                error_line = line_nbr;
+                return false;
+            }
+            location_conf.set_list_directory(location_instruction_list.at(i).at(1) == "on");
+        } else if (location_instruction_list.at(i).at(0) == "upload_dir") {
+            if (location_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'upload_dir'";
+                error_line = line_nbr;
+                return false;
+            }
+            location_conf.set_upload_dir(location_instruction_list.at(i).at(1));
+        } else {
+            error_message = "Invalid field '" + location_instruction_list.at(i).at(0) + "'";
+            error_line = line_nbr;
+            return false;
+        }
+    }
+    return true;
+}
+
+bool config_parser::parse_server_config(size_t line_nbr) {
+    server_config &server_conf = *conf.get_http_conf().get_server_configs().rbegin();
+    const instruction_list_t &server_instruction_list = *scope_to_instructions.at("server").rbegin();
+
+    for (size_t i = 0 ; i < server_instruction_list.size(); ++i) {
+        if (server_instruction_list.at(i).at(0) == "listen") {
+            if (server_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'listen'";
+                error_line = line_nbr;
+                return false;
+            }
+            const std::string &ip_port = server_instruction_list.at(i).at(1);
+            std::string ip;
+            in_port_t port;
+            std::stringstream port_stream;
+            size_t idx = ip_port.find(':');
+            if (idx != std::string::npos) {
+                ip = ip_port.substr(0, idx);
+                port_stream.str(ip_port.substr(idx + 1));
+            } else {
+                ip = "0.0.0.0";
+                port_stream.str(ip_port);
+            }
+            port_stream >> port;
+
+            server_conf.add_address(ip, port);
+        } else if (server_instruction_list.at(i).at(0) == "root") {
+            if (server_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'root'";
+                error_line = line_nbr;
+                return false;
+            }
+            server_conf.set_root(server_instruction_list.at(i).at(1));
+        } else if (server_instruction_list.at(i).at(0) == "server_names") {
+            server_conf.set_server_names(std::set<std::string>(
+                    server_instruction_list.at(i).begin() + 1,
+                    server_instruction_list.at(i).end()));
+        } else if (server_instruction_list.at(i).at(0) == "error_page") {
+            if (server_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'error_page'";
+                error_line = line_nbr;
+                return false;
+            }
+            server_conf.set_error_page(server_instruction_list.at(i).at(1));
+        } else if (server_instruction_list.at(i).at(0) == "access_log") {
+            if (server_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'access_log'";
+                error_line = line_nbr;
+                return false;
+            }
+            server_conf.set_access_log(server_instruction_list.at(i).at(1));
+        } else if (server_instruction_list.at(i).at(0) == "error_log") {
+            if (server_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'error_log'";
+                error_line = line_nbr;
+                return false;
+            }
+            server_conf.set_error_log(server_instruction_list.at(i).at(1));
+        } else if (server_instruction_list.at(i).at(0) == "client_max_body_size") {
+            if (server_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'client_max_body_size'";
+                error_line = line_nbr;
+                return false;
+            }
+            const std::string &arg = server_instruction_list.at(i).at(1);
+            if (!utilities::is_valid_client_max_body_size(arg)) {
+                error_message = "Invalid argument for 'client_max_body_size' : " + arg;
+                error_line = line_nbr;
+                return false;
+            }
+            size_t size = utilities::translate_client_max_body_size(arg);
+            server_conf.set_client_max_body_size(size);
+        } else if (server_instruction_list.at(i).at(0) == "index") {
+            std::vector<std::string> indexes(server_instruction_list.at(i).begin() + 1,
+                                             server_instruction_list.at(i).end());
+            server_conf.set_indexes(indexes);
+        } else if (server_instruction_list.at(i).at(0) == "cgi_path") {
+            if (server_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'cgi_path'";
+                error_line = line_nbr;
+                return false;
+            }
+            server_conf.set_cgi_path(server_instruction_list.at(i).at(1));
+        } else if (server_instruction_list.at(i).at(0) == "cgi_extension") {
+            if (server_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'cgi_extension'";
+                error_line = line_nbr;
+                return false;
+            }
+            server_conf.set_cgi_extension(server_instruction_list.at(i).at(1));
+        } else {
+            error_message = "Invalid field '" + server_instruction_list.at(i).at(0) + "'";
+            error_line = line_nbr;
+            return false;
+        }
+    }
+    return true;
+}
+
+bool config_parser::parse_http_config(size_t line_nbr) {
+    http_config &http_conf = conf.get_http_conf();
+    const instruction_list_t &http_instruction_list = scope_to_instructions.at("http").at(0);
+
+    for (size_t i = 0 ; i < http_instruction_list.size(); ++i) {
+        if (http_instruction_list.at(i).at(0) == "root") {
+            if (http_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'root'";
+                error_line = line_nbr;
+                return false;
+            }
+            http_conf.set_root(http_instruction_list.at(i).at(1));
+        } else if (http_instruction_list.at(i).at(0) == "error_page") {
+            if (http_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'error_page'";
+                error_line = line_nbr;
+                return false;
+            }
+            http_conf.set_error_page(http_instruction_list.at(i).at(1));
+        } else if (http_instruction_list.at(i).at(0) == "error_log") {
+            if (http_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'error_log'";
+                error_line = line_nbr;
+                return false;
+            }
+            http_conf.set_error_log(http_instruction_list.at(i).at(1));
+        } else if (http_instruction_list.at(i).at(0) == "access_log") {
+            if (http_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'access_log'";
+                error_line = line_nbr;
+                return false;
+            }
+            http_conf.set_access_log(http_instruction_list.at(i).at(1));
+        } else if (http_instruction_list.at(i).at(0) == "client_max_body_size") {
+            if (http_instruction_list.at(i).size() != 2) {
+                error_message = "Invalid number of args for 'client_max_body_size'";
+                error_line = line_nbr;
+                return false;
+            }
+            const std::string &arg = http_instruction_list.at(i).at(1);
+            if (!utilities::is_valid_client_max_body_size(arg)) {
+                error_message = "Invalid argument for 'client_max_body_size' : " + arg;
+                error_line = line_nbr;
+                return false;
+            }
+            size_t size = utilities::translate_client_max_body_size(arg);
+            http_conf.set_client_max_body_size(size);
+        } else if (http_instruction_list.at(i).at(0) == "index") {
+            std::vector<std::string> indexes(http_instruction_list.at(i).begin() + 1,
+                                             http_instruction_list.at(i).end());
+            http_conf.set_indexes(indexes);
+        } else {
+            error_message = "Invalid field '" + http_instruction_list.at(i).at(0) + "'";
+            error_line = line_nbr;
+            return false;
+        }
+    }
+    return true;
+}
+
 void config_parser::propagate() {
     // Propagate from main scope to http scope
     conf.set_error_log(get_absolute_path(conf.get_error_log()));
     if (conf.get_http_conf().get_error_log().empty()) {
         conf.get_http_conf().set_error_log(conf.get_error_log());
     }
+
     // Propagate from http scope to server scope
     http_config &http_conf = conf.get_http_conf();
     http_conf.set_error_log(get_absolute_path(http_conf.get_error_log()));
     http_conf.set_access_log(get_absolute_path(http_conf.get_access_log()));
     http_conf.set_error_page(get_absolute_path(http_conf.get_error_page()));
     http_conf.set_root(get_absolute_path(http_conf.get_root()));
+
     for (size_t i = 0; i < http_conf.get_server_configs().size(); ++i) {
         server_config &server_conf = http_conf.get_server_configs().at(i);
         if (server_conf.get_root().empty()) {
@@ -455,11 +454,13 @@ void config_parser::propagate() {
         if (server_conf.get_indexes().empty()) {
             server_conf.set_indexes(http_conf.get_indexes());
         }
+
         server_conf.set_error_log(get_absolute_path(server_conf.get_error_log()));
         server_conf.set_access_log(get_absolute_path(server_conf.get_access_log()));
         server_conf.set_error_page(get_absolute_path(server_conf.get_error_page()));
         server_conf.set_root(get_absolute_path(server_conf.get_root()));
         server_conf.set_cgi_path(get_absolute_path(server_conf.get_cgi_path()));
+
         // Propagate from server scope to location scope
         for (size_t j = 0; j < server_conf.get_location_configs().size(); ++j) {
             location_config &location_conf = server_conf.get_location_configs().at(j);
@@ -475,6 +476,7 @@ void config_parser::propagate() {
             if (location_conf.get_indexes().empty()) {
                 location_conf.set_indexes(server_conf.get_indexes());
             }
+
             location_conf.set_error_page(get_absolute_path(location_conf.get_error_page()));
             location_conf.set_root(get_absolute_path(location_conf.get_root()));
             location_conf.set_upload_dir(get_absolute_path(location_conf.get_upload_dir()));
