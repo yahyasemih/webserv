@@ -5,12 +5,13 @@
 #include "client.hpp"
 
 client::client(int fd, sockaddr_in local_addr, sockaddr_in remote_addr) : buffer(), fd(fd), local_addr(local_addr),
-        remote_addr(remote_addr), header_completed(false), body_completed(false), is_chunked(false) {
+        remote_addr(remote_addr), last_request_ts(std::time(NULL)), header_completed(false), body_completed(false),
+        is_chunked(false) {
 }
 
 client::client(const client &o) : buffer(), fd(o.fd), local_addr(o.local_addr), remote_addr(o.remote_addr),
-        req_builder(o.req_builder), content(o.content.str()), header_completed(o.header_completed),
-        body_completed(o.body_completed), is_chunked(o.is_chunked) {
+        req_builder(o.req_builder), content(o.content.str()), last_request_ts(o.last_request_ts),
+        header_completed(o.header_completed), body_completed(o.body_completed), is_chunked(o.is_chunked) {
 }
 
 ssize_t client::receive() {
@@ -44,13 +45,19 @@ ssize_t client::receive() {
         }
         return res;
     }
+    if (body_completed) {
+        return res;
+    }
     req_builder.append_body(buffer, res);
     if (is_chunked) {
         // TODO: handle chunked request
         // Temporary to test with tester
-        if ((req_builder.get_body().size() >= 7 && strnstr(req_builder.get_body().data(), "\r\n0\r\n\r\n", req_builder.get_body().size()))
-                || (req_builder.get_body().size() >= 5
-                        && strnstr(req_builder.get_body().data(), "0\r\n\r\n", req_builder.get_body().size()) == req_builder.get_body().data())) {
+        bool ends_with_empty_chunk = req_builder.get_body().size() >= 7
+                && strnstr(req_builder.get_body().data(), "\r\n0\r\n\r\n", req_builder.get_body().size()) != NULL;
+        bool contains_only_empty_chunk = req_builder.get_body().size() >= 5
+                && strnstr(req_builder.get_body().data(), "0\r\n\r\n", 5) == req_builder.get_body().data();
+
+        if (ends_with_empty_chunk || contains_only_empty_chunk) {
             body_completed = true;
         }
     } else {
@@ -152,7 +159,8 @@ void client::process_request_line() {
         request_line.erase(request_line.size() - 1);
     }
     if (request_line.empty()) {
-        // TODO: Bad Request
+        header_completed = true;
+        body_completed = true;
         return;
     }
 
@@ -166,6 +174,7 @@ void client::process_request_line() {
     request_line_stream >> path;
     request_line_stream >> http_version;
     req_builder.set_uri(path);
+
     size_t idx = path.find('?');
     if (idx != std::string::npos) {
         query_string = path.c_str() + idx + 1;
@@ -175,8 +184,10 @@ void client::process_request_line() {
             .set_path(url_decode(path))
             .set_query_string(query_string)
             .set_http_version(http_version);
-    if (req_builder.get_http_version() != constants::HTTP_VERSION) {
-        // TODO: Bad Request
+
+    if (req_builder.is_bad_request()) {
+        header_completed = true;
+        body_completed = true;
         return;
     }
 }
@@ -204,4 +215,12 @@ void client::process_header_lines() {
         }
         req_builder.set_header(key, value);
     }
+}
+
+std::time_t client::get_last_request_ts() const {
+    return last_request_ts;
+}
+
+void client::reset_last_request_ts() {
+    last_request_ts = std::time(NULL);
 }

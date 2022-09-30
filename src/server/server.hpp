@@ -46,7 +46,10 @@ private:
     void accept_connection(pollfd &pf);
     void handle_request(pollfd &pf);
     void serve_response(pollfd &pf);
+    void check_idle_clients();
+    void clean_single_fd(pollfd &pf);
     void clean_fds();
+
     const server_config &get_matching_server(const std::string &ip, const std::string &hostname, in_port_t port);
     static const location_config &get_matching_location(const request_builder &req_builder,
             const server_config &server_conf);

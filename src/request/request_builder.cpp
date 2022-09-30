@@ -75,6 +75,25 @@ request_builder &request_builder::set_header(const std::string &key, const std::
     return *this;
 }
 
+bool request_builder::is_bad_request() const {
+    if (get_http_version() != constants::HTTP_VERSION) {
+        return true;
+    }
+    if (constants::VALID_METHODS.find(get_method()) == constants::VALID_METHODS.end()) {
+        return true;
+    }
+    if (get_uri().empty() || get_uri().size() > FILENAME_MAX * 2) {
+        return true;
+    }
+    if (get_path().empty() || get_path().size() > FILENAME_MAX) {
+        return true;
+    }
+    if (get_query_string().size() > FILENAME_MAX) {
+        return true;
+    }
+    return false;
+}
+
 void request_builder::reset() {
     *this = request_builder();
 }
