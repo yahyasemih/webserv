@@ -390,7 +390,7 @@ void server::process_request(request_builder &req_builder, response_builder &res
         }
         if (i == location_conf.get_indexes().size()) { // Fallback to directory listing
             if (location_conf.is_list_directory()) {
-                directory_index_builder index_page(file, location_conf.get_root());
+                directory_index_builder index_page(file, req_builder.get_path());
                 res_builder.set_status(200)
                         .set_body(index_page.list_directory());
                 return;
