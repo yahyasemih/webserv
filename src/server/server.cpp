@@ -251,7 +251,7 @@ void server::handle_request(pollfd &pf) {
     std::string ip = inet_ntoa(c.get_local_addr());
     std::string hostname;
     in_port_t port = c.get_local_port();
-    std::string &header_host = req_builder.get_header("address_port");
+    std::string &header_host = req_builder.get_header("Host");
 
     if (!header_host.empty()) {
         size_t column_idx = header_host.find(':');
