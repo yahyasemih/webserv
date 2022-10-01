@@ -92,10 +92,14 @@ void utilities::set_environment_variables(request_builder &req_builder, const st
     setenv("SCRIPT_FILENAME", file.c_str(), 1);
     setenv("SCRIPT_NAME", get_file_basename(file).c_str(), 1);
 
-    setenv("CONTENT_TYPE", req_builder.get_header("Content-Type").c_str(), 1);
-    setenv("CONTENT_LENGTH", req_builder.get_header("Content-Length").c_str(), 1);
-
     setenv("DOCUMENT_ROOT", location_conf.get_root().c_str(), 1);
+
+    if (!req_builder.get_header("Content-Type").empty()) {
+        setenv("CONTENT_TYPE", req_builder.get_header("Content-Type").c_str(), 1);
+    }
+    if (!req_builder.get_header("Content-Length").empty()) {
+        setenv("CONTENT_LENGTH", req_builder.get_header("Content-Length").c_str(), 1);
+    }
 
     if (!req_builder.get_header("Host").empty()) {
         setenv("SERVER_NAME", req_builder.get_header("Host").c_str(), 1);
@@ -109,6 +113,9 @@ void utilities::set_environment_variables(request_builder &req_builder, const st
 
     const std::map<std::string, std::string> &headers = req_builder.get_headers();
     for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+        if (it->second.empty()) {
+            continue;
+        }
         std::string key = "HTTP_";
         std::transform(it->first.begin(), it->first.end(), std::back_inserter(key), update_header_key);
         setenv(key.c_str(), it->second.c_str(), 1);
