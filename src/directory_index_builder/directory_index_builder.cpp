@@ -1,11 +1,14 @@
 #include "directory_index_builder.hpp"
 
 directory_index_builder::directory_index_builder(const std::string &directory_path,
-        const std::string &root) {
+        const std::string &uri) {
     this->template_file_path = "src/directory_index_builder/directory_index_template.html";
     this->directory_path = directory_path;
     this->read_file();
-    this->route = this->directory_path.substr(root.size(), this->directory_path.size());
+    this->uri = uri;
+    if (*this->uri.rbegin() != '/') {
+        this->uri += "/";
+    }
 }
 
 std::string directory_index_builder::list_directory() {
@@ -61,7 +64,7 @@ void directory_index_builder::add_directory_path() {
     std::string to_replace = "{directory_path}";
     size_t index = this->template_content.find(to_replace);
     while (index != std::string::npos) {
-        this->template_content.replace(index, to_replace.size(), this->directory_path);
+        this->template_content.replace(index, to_replace.size(), this->uri);
         index = this->template_content.find(to_replace);
     }
 }
@@ -69,11 +72,11 @@ void directory_index_builder::add_directory_path() {
 void directory_index_builder::add_parent_directory_path() {
     std::string parent;
     std::string to_replace = "{parent_link}";
-    if (this->route == "/")
+    if (this->uri == "/")
         parent = "/";
     else {
-        // remove the last directory from route to get to the parent directory.
-        std::string tmp(this->route);
+        // remove the last directory from uri to get to the parent directory.
+        std::string tmp(this->uri);
         tmp.erase(tmp.rfind('/'));
         parent = tmp.substr(0, tmp.rfind('/') + 1);
     }
@@ -91,9 +94,16 @@ void directory_index_builder::add_new_table_entry(const std::string &file_name, 
     }
     std::string pre = this->template_content.substr(0, index + 18);
     std::string post = this->template_content.substr(index + 18, this->template_content.length());
+    std::string url = this->uri;
+    if (url[0] != '/') {
+        url = "/" + url;
+    }
+    if (*url.rbegin() != '/') {
+        url += "/";
+    }
 
     pre += "\n<tr>\n"
-        "<td><a href='" + this->route + file_name + "'>" + file_name + "</a></td>\n"
+        "<td><a href='" + url + file_name + "'>" + file_name + "</a></td>\n"
         "<td>" + size + "</td>\n"
         "<td>" + date + "</td>\n"
         "</tr>\n";

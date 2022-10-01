@@ -16,7 +16,7 @@
 
 class directory_index_builder {
 public:
-    directory_index_builder(const std::string &directory, const std::string &root);
+    directory_index_builder(const std::string &directory, const std::string &uri);
 
     void add_directory_path();
     void add_new_table_entry(const std::string &file_name, const std::string &size, const std::string &date);
@@ -26,7 +26,7 @@ public:
 private:
     void read_file();
 
-    std::string route;
+    std::string uri;
     std::string directory_path;
     std::string template_file_path;
     std::string template_content;
