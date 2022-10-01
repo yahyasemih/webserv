@@ -32,12 +32,12 @@ std::string directory_index_builder::list_directory() {
         // if we can't get the required information about the file, we will display its name and leave the other
         // two columns empty
         if (stat(full_path.c_str(), &file_stat) == -1) {
-            add_new_table_entry(dirent_struct->d_name, "", "");
+            add_new_table_entry(dirent_struct->d_name, "-", "-");
             continue;
         }
         // We don't need size for a directory, we only display size for files.
         if (file_stat.st_mode & S_IFDIR)
-            size = "";
+            size = "-";
         else
             size = utilities::get_file_readable_size(file_stat.st_size);
         // Add file information to page.
@@ -88,12 +88,13 @@ void directory_index_builder::add_parent_directory_path() {
 
 void directory_index_builder::add_new_table_entry(const std::string &file_name, const std::string &size,
         const std::string &date) {
-    size_t index = this->template_content.find("<tbody id='tbody'>");
-    if (index == std::string::npos || index + 18 >= this->template_content.size()) {
+    std::string to_find = "</table>";
+    size_t index = this->template_content.find(to_find);
+    if (index == std::string::npos || index + to_find.size() >= this->template_content.size()) {
         return;
     }
-    std::string pre = this->template_content.substr(0, index + 18);
-    std::string post = this->template_content.substr(index + 18, this->template_content.length());
+    std::string pre = this->template_content.substr(0, index);
+    std::string post = this->template_content.substr(index, this->template_content.size());
     std::string url = this->uri;
     if (url[0] != '/') {
         url = "/" + url;
@@ -103,9 +104,11 @@ void directory_index_builder::add_new_table_entry(const std::string &file_name, 
     }
 
     pre += "\n<tr>\n"
+        "<td valign=\"top\">&nbsp;</td>"
         "<td><a href='" + url + file_name + "'>" + file_name + "</a></td>\n"
-        "<td>" + size + "</td>\n"
-        "<td>" + date + "</td>\n"
+        "<td align=\"right\">" + size + "</td>\n"
+        "<td align=\"right\">" + date + "</td>\n"
+        "<td>&nbsp;</td>"
         "</tr>\n";
     pre += post;
     this->template_content = pre;
