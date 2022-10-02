@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include <cassert>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <iostream>
@@ -51,6 +52,16 @@ private:
     bool body_completed;
     bool is_chunked;
 
+    std::string chunk_content;
+    size_t current_chunk_size;
+    size_t left;
+    bool got_size;
+
+    void reset_chunk_values();
+    bool is_chunk_done() const;
+    void update_left(size_t bytes_read);
+    void get_chunk_size();
+    bool handle_chunk();
     void process_request_line();
     void process_header_lines();
     void reset();

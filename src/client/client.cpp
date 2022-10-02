@@ -6,12 +6,13 @@
 
 client::client(int fd, sockaddr_in local_addr, sockaddr_in remote_addr) : buffer(), fd(fd), local_addr(local_addr),
         remote_addr(remote_addr), last_request_ts(std::time(NULL)), header_completed(false), body_completed(false),
-        is_chunked(false) {
+        is_chunked(false), current_chunk_size(0), left(0), got_size(false) {
 }
 
 client::client(const client &o) : buffer(), fd(o.fd), local_addr(o.local_addr), remote_addr(o.remote_addr),
         req_builder(o.req_builder), content(o.content.str()), last_request_ts(o.last_request_ts),
-        header_completed(o.header_completed), body_completed(o.body_completed), is_chunked(o.is_chunked) {
+        header_completed(o.header_completed), body_completed(o.body_completed), is_chunked(o.is_chunked),
+        current_chunk_size(o.current_chunk_size), left(o.left), got_size(o.got_size) {
 }
 
 ssize_t client::receive() {
@@ -21,6 +22,7 @@ ssize_t client::receive() {
     if (res <= 0) {
         return res;
     }
+
     buffer[res] = '\0';
     if (!header_completed) {
         content << buffer;
@@ -48,25 +50,98 @@ ssize_t client::receive() {
     if (body_completed) {
         return res;
     }
-    req_builder.append_body(buffer, res);
-    if (is_chunked) {
-        // TODO: handle chunked request
-        // Temporary to test with tester
-        bool ends_with_empty_chunk = req_builder.get_body().size() >= 7
-                && strnstr(req_builder.get_body().data(), "\r\n0\r\n\r\n", req_builder.get_body().size()) != NULL;
-        bool contains_only_empty_chunk = req_builder.get_body().size() >= 5
-                && strnstr(req_builder.get_body().data(), "0\r\n\r\n", 5) == req_builder.get_body().data();
 
-        if (ends_with_empty_chunk || contains_only_empty_chunk) {
-            body_completed = true;
+    if (is_chunked) {
+        chunk_content += buffer;
+        if (!handle_chunk()) {
+            return res;
         }
     } else {
+        req_builder.append_body(buffer, res);
         size_t body_length = std::strtoul(req_builder.get_header("Content-Length").c_str(), NULL, 10);
         if (req_builder.get_body().size() == body_length) {
             body_completed = true;
         }
     }
     return res;
+}
+
+bool client::handle_chunk() {
+    if (left > 0) {
+        std::string read;
+        read = chunk_content.substr(0, left);
+        update_left(read.size());
+        if (read.size() < chunk_content.size())
+            chunk_content = chunk_content.substr(read.size() + 1, chunk_content.size());
+        else
+            chunk_content.clear();
+        if (current_chunk_size == 0 && left == 0) {
+            req_builder.append_body(read.c_str(), read.size() - 2);
+            body_completed = true;
+            return false;
+        }
+        req_builder.append_body(read.c_str(), read.size());
+        if (is_chunk_done()) {
+            reset_chunk_values();
+        }
+    }
+
+    while (!chunk_content.empty()) {
+        std::string read;
+        if (!got_size)
+            get_chunk_size();
+        if (!got_size)
+            return false;
+        if (current_chunk_size == 0 && left == 0) {
+            body_completed = true;
+            return false;
+        }
+        if (!this->chunk_content.empty()) {
+            read = this->chunk_content.substr(0, this->left);
+            update_left(read.size());
+            chunk_content = this->chunk_content.substr(read.size(), chunk_content.size());
+            req_builder.append_body(read.c_str(), read.size());
+            if (is_chunk_done())
+                reset_chunk_values();
+        }
+    }
+
+    return true;
+}
+
+bool client::is_chunk_done() const {
+    return this->left == 0;
+}
+
+void client::reset_chunk_values() {
+    this->chunk_content.clear();
+    this->current_chunk_size = 0;
+    this->left = 0;
+    this->got_size = false;
+}
+
+void client::update_left(size_t bytes_read) {
+    if (this->left >= bytes_read) {
+        this->left -= bytes_read;
+    } else {
+        this->left = 0;
+    }
+}
+
+void client::get_chunk_size() {
+    if (!this->chunk_content.empty()) {
+        std::string hex_size;
+        std::string to_find = "\r\n";
+        size_t idx = chunk_content.find(to_find);
+        if (idx == std::string::npos) {
+            return;
+        }
+        this->got_size = true;
+        hex_size = chunk_content.substr(0, idx);
+        this->chunk_content = chunk_content.substr(idx + to_find.size(), chunk_content.size());
+        this->current_chunk_size = std::strtoul(hex_size.c_str(), NULL, 16);
+        this->left = this->current_chunk_size + 2;
+    }
 }
 
 bool client::request_not_complete() const {
@@ -123,6 +198,7 @@ void client::reset() {
     header_completed = false;
     body_completed = false;
     is_chunked = false;
+    reset_chunk_values();
 }
 
 void client::process_request_line() {
